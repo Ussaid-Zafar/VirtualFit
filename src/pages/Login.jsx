@@ -1,7 +1,32 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { authAPI } from '../services/api';
 
 const Login = () => {
+    const navigate = useNavigate();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        try {
+            const response = await authAPI.login(email, password);
+            if (response.success) {
+                navigate('/dashboard');
+            }
+        } catch (err) {
+            setError(err.message || 'Login failed. Please check your credentials.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="bg-background text-body min-h-screen flex flex-col antialiased font-sans">
             <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-6 sm:p-12">
@@ -17,13 +42,28 @@ const Login = () => {
                             <p className="mt-2 text-sm text-body">Login to your outlet dashboard</p>
                         </div>
                     </div>
-                    <form action="#" className="space-y-6">
+
+                    {error && (
+                        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
+                            {error}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-2">
                             <label className="text-sm font-medium leading-none text-heading" htmlFor="email">
                                 Email Address
                             </label>
                             <div className="relative">
-                                <input className="flex h-12 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-heading placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200" id="email" placeholder="name@outlet.com" required="" type="email" />
+                                <input
+                                    className="flex h-12 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-heading placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                                    id="email"
+                                    placeholder="name@outlet.com"
+                                    required
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                />
                                 <div className="absolute right-3 top-3 text-gray-400 pointer-events-none">
                                     <span className="material-symbols-outlined text-[20px]">mail</span>
                                 </div>
@@ -36,9 +76,23 @@ const Login = () => {
                                 </label>
                             </div>
                             <div className="relative">
-                                <input className="flex h-12 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-heading placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200" id="password" placeholder="Enter your password" required="" type="password" />
-                                <button className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer" type="button">
-                                    <span className="material-symbols-outlined text-[20px]">visibility</span>
+                                <input
+                                    className="flex h-12 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-heading placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                                    id="password"
+                                    placeholder="Enter your password"
+                                    required
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                                <button
+                                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">
+                                        {showPassword ? 'visibility_off' : 'visibility'}
+                                    </span>
                                 </button>
                             </div>
                         </div>
@@ -53,10 +107,27 @@ const Login = () => {
                                 Forgot password?
                             </a>
                         </div>
-                        <button className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-gradient-to-r from-primary to-blue-600 px-8 py-2 text-sm font-bold text-white shadow-md hover:shadow-lg hover:to-primary transition-all duration-200" type="submit">
-                            Log In
+                        <button
+                            className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-gradient-to-r from-primary to-blue-600 px-8 py-2 text-sm font-bold text-white shadow-md hover:shadow-lg hover:to-primary transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            type="submit"
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <>
+                                    <span className="material-symbols-outlined animate-spin mr-2 text-[20px]">progress_activity</span>
+                                    Logging in...
+                                </>
+                            ) : (
+                                'Log In'
+                            )}
                         </button>
                     </form>
+
+                    {/* Demo credentials hint */}
+                    <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-xs">
+                        <strong>Demo:</strong> test@store.com / password123
+                    </div>
+
                     <div className="relative my-8">
                         <div className="absolute inset-0 flex items-center">
                             <span className="w-full border-t border-border"></span>

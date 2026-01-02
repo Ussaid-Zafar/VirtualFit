@@ -1,14 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { productsAPI, authAPI } from '../../services/api';
 
 const DashboardHome = () => {
     const [channel, setChannel] = useState(null);
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const outlet = authAPI.getOutlet();
 
     useEffect(() => {
         const newChannel = new BroadcastChannel('virtual-fit-app');
         setChannel(newChannel);
         return () => newChannel.close();
     }, []);
+
+    // Fetch products on mount
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+
+    const fetchProducts = async () => {
+        try {
+            setLoading(true);
+            const response = await productsAPI.getAll(outlet?.id);
+            if (response.success) {
+                setProducts(response.data);
+            }
+        } catch (err) {
+            console.error('Failed to load products:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const openCustomerScreen = () => {
         // Open the Try-On URL in a new popup window
@@ -27,14 +51,16 @@ const DashboardHome = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-heading">Overview</h1>
-                    <p className="text-body mt-1">Welcome back, here's what's happening at your outlet today.</p>
+                    <p className="text-body mt-1">Welcome back{outlet?.name ? `, ${outlet.name}` : ''}! Here's what's happening at your outlet today.</p>
                 </div>
                 <div className="flex gap-3">
-                    {/* Placeholder for action buttons */}
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-border-gray rounded-lg text-heading font-medium hover:bg-page transition-colors shadow-sm">
+                    <Link
+                        to="/dashboard/inventory"
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-border-gray rounded-lg text-heading font-medium hover:bg-page transition-colors shadow-sm"
+                    >
                         <span className="material-symbols-outlined text-[20px]">add</span>
                         Add Item
-                    </button>
+                    </Link>
                     <button
                         onClick={openCustomerScreen}
                         className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary-dark transition-colors shadow-sm shadow-primary/20"
@@ -45,64 +71,99 @@ const DashboardHome = () => {
                 </div>
             </div>
 
-            {/* Remote Control Demo Section (Temporary) */}
-            <div className="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            {/* Remote Control Section with REAL Products */}
+            <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl">
                 <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
                     <span className="material-symbols-outlined">cast</span>
-                    Remote Control Demo
+                    Remote Control - Your Products
                 </h3>
-                <p className="text-sm text-blue-800 mb-4">Click "Launch Customer Screen" above, drag the new window to your second monitor, then click these items to control that screen instantly.</p>
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => sendToCustomerScreen({ id: 1, name: 'Denim Jacket', image: 'https://via.placeholder.com/150/2D3FE7/FFFFFF?text=Jacket' })}
-                        className="px-3 py-2 bg-white rounded border border-blue-200 text-sm font-medium hover:bg-blue-100"
-                    >
-                        Show Denim Jacket
-                    </button>
-                    <button
-                        onClick={() => sendToCustomerScreen({ id: 2, name: 'Summer Dress', image: 'https://via.placeholder.com/150/14B8A6/FFFFFF?text=Dress' })}
-                        className="px-3 py-2 bg-white rounded border border-blue-200 text-sm font-medium hover:bg-blue-100"
-                    >
-                        Show Summer Dress
-                    </button>
-                </div>
+                <p className="text-sm text-blue-800 mb-4">
+                    Click "Launch Customer Screen" above, drag the new window to your second monitor, then click products below to display on the customer screen.
+                </p>
+
+                {loading ? (
+                    <div className="flex items-center gap-2 text-blue-600">
+                        <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                        Loading products...
+                    </div>
+                ) : products.length === 0 ? (
+                    <div className="text-blue-700">
+                        <p className="mb-2">No products registered yet.</p>
+                        <Link to="/dashboard/inventory" className="inline-flex items-center gap-1 text-primary font-medium hover:underline">
+                            <span className="material-symbols-outlined text-[18px]">add</span>
+                            Add your first product
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {products.slice(0, 12).map(product => (
+                            <button
+                                key={product.id}
+                                onClick={() => sendToCustomerScreen({
+                                    id: product.id,
+                                    name: product.name,
+                                    image: product.image_url || `https://via.placeholder.com/150/2D3FE7/FFFFFF?text=${encodeURIComponent(product.name.charAt(0))}`
+                                })}
+                                className="flex flex-col items-center p-3 bg-white rounded-lg border border-blue-200 hover:border-primary hover:shadow-md transition-all group"
+                            >
+                                <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center mb-2 overflow-hidden">
+                                    {product.image_url ? (
+                                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="material-symbols-outlined text-gray-400">checkroom</span>
+                                    )}
+                                </div>
+                                <span className="text-xs font-medium text-heading text-center line-clamp-2 group-hover:text-primary">
+                                    {product.name}
+                                </span>
+                                <span className="text-xs text-body">${product.price.toFixed(2)}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {products.length > 12 && (
+                    <p className="text-xs text-blue-600 mt-3">
+                        Showing 12 of {products.length} products. <Link to="/dashboard/inventory" className="underline">View all in Inventory</Link>
+                    </p>
+                )}
             </div>
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
                 <MetricCard
-                    title="Active Sessions"
-                    value="12"
-                    trend="+20%"
+                    title="Total Products"
+                    value={products.length.toString()}
+                    trend="In inventory"
                     trendUp={true}
-                    icon="devices"
+                    icon="checkroom"
                     color="text-blue-600"
                     bg="bg-blue-50"
                 />
                 <MetricCard
-                    title="Items Tried On"
-                    value="148"
-                    trend="+12%"
+                    title="Active Sessions"
+                    value="0"
+                    trend="Live now"
                     trendUp={true}
-                    icon="checkroom"
+                    icon="devices"
                     color="text-teal-600"
                     bg="bg-teal-50"
                 />
                 <MetricCard
-                    title="Avg. Time"
-                    value="4m 30s"
-                    trend="-5%"
-                    trendUp={false}
-                    icon="timer"
+                    title="Items Tried On"
+                    value="0"
+                    trend="Today"
+                    trendUp={true}
+                    icon="accessibility_new"
                     color="text-purple-600"
                     bg="bg-purple-50"
                 />
                 <MetricCard
-                    title="Conversion Rate"
-                    value="24%"
-                    trend="+2.5%"
+                    title="Categories"
+                    value={[...new Set(products.map(p => p.category))].length.toString()}
+                    trend="Product types"
                     trendUp={true}
-                    icon="shopping_bag"
+                    icon="category"
                     color="text-indigo-600"
                     bg="bg-indigo-50"
                 />
@@ -110,34 +171,92 @@ const DashboardHome = () => {
 
             {/* Recent Activity / Inventory Snapshot */}
             <div className="grid lg:grid-cols-2 gap-6">
-                {/* Recent Sessions */}
+                {/* Quick Actions */}
                 <div className="bg-white rounded-xl border border-border-gray shadow-sm p-6">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="font-bold text-lg text-heading">Recent Sessions</h2>
-                        <Link to="/dashboard/sessions" className="text-sm text-primary font-medium hover:underline">View All</Link>
+                        <h2 className="font-bold text-lg text-heading">Quick Actions</h2>
                     </div>
-                    <div className="space-y-4">
-                        <SessionRow time="2 mins ago" items="Blue Denim Jacket" status="Active" />
-                        <SessionRow time="15 mins ago" items="Floral Summer Dress" status="Completed" />
-                        <SessionRow time="32 mins ago" items="Slim Fit Chinos" status="Completed" />
-                        <SessionRow time="1 hour ago" items="Leather Biker Jacket" status="Abandoned" />
-                        <SessionRow time="2 hours ago" items="Striped Cotton Shirt" status="Completed" />
+                    <div className="grid grid-cols-2 gap-3">
+                        <Link
+                            to="/dashboard/inventory"
+                            className="flex items-center gap-3 p-4 rounded-lg border border-border-gray hover:border-primary hover:bg-blue-50 transition-all"
+                        >
+                            <span className="material-symbols-outlined text-primary">inventory_2</span>
+                            <div>
+                                <p className="font-medium text-heading">Manage Inventory</p>
+                                <p className="text-xs text-body">{products.length} items</p>
+                            </div>
+                        </Link>
+                        <button
+                            onClick={openCustomerScreen}
+                            className="flex items-center gap-3 p-4 rounded-lg border border-border-gray hover:border-primary hover:bg-blue-50 transition-all text-left"
+                        >
+                            <span className="material-symbols-outlined text-primary">cast</span>
+                            <div>
+                                <p className="font-medium text-heading">Open Try-On</p>
+                                <p className="text-xs text-body">Customer screen</p>
+                            </div>
+                        </button>
+                        <Link
+                            to="/dashboard/analytics"
+                            className="flex items-center gap-3 p-4 rounded-lg border border-border-gray hover:border-primary hover:bg-blue-50 transition-all"
+                        >
+                            <span className="material-symbols-outlined text-primary">analytics</span>
+                            <div>
+                                <p className="font-medium text-heading">View Analytics</p>
+                                <p className="text-xs text-body">Performance data</p>
+                            </div>
+                        </Link>
+                        <Link
+                            to="/dashboard/settings"
+                            className="flex items-center gap-3 p-4 rounded-lg border border-border-gray hover:border-primary hover:bg-blue-50 transition-all"
+                        >
+                            <span className="material-symbols-outlined text-primary">settings</span>
+                            <div>
+                                <p className="font-medium text-heading">Settings</p>
+                                <p className="text-xs text-body">Configure outlet</p>
+                            </div>
+                        </Link>
                     </div>
                 </div>
 
-                {/* Popular Items */}
+                {/* Recent Products */}
                 <div className="bg-white rounded-xl border border-border-gray shadow-sm p-6">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="font-bold text-lg text-heading">Trending Items</h2>
-                        <Link to="/dashboard/analytics" className="text-sm text-primary font-medium hover:underline">View Analytics</Link>
+                        <h2 className="font-bold text-lg text-heading">Recent Products</h2>
+                        <Link to="/dashboard/inventory" className="text-sm text-primary font-medium hover:underline">View All</Link>
                     </div>
-                    <div className="space-y-4">
-                        <ItemRow rank="1" name="Floral Summer Dress" tries="45" />
-                        <ItemRow rank="2" name="Slim Fit Jeans" tries="38" />
-                        <ItemRow rank="3" name="Classic White Tee" tries="32" />
-                        <ItemRow rank="4" name="Beige Trench Coat" tries="28" />
-                        <ItemRow rank="5" name="Leather Ankle Boots" tries="25" />
-                    </div>
+                    {products.length === 0 ? (
+                        <div className="text-center py-8 text-body">
+                            <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">inventory_2</span>
+                            <p>No products yet</p>
+                            <Link to="/dashboard/inventory" className="text-primary hover:underline text-sm">Add products</Link>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {products.slice(0, 5).map((product, index) => (
+                                <div key={product.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-page transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm font-bold text-body w-4">{index + 1}</span>
+                                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                                            {product.image_url ? (
+                                                <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="material-symbols-outlined text-[16px] text-gray-400">checkroom</span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-heading">{product.name}</p>
+                                            <p className="text-xs text-body">{product.category}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-sm text-heading font-semibold">
+                                        ${product.price.toFixed(2)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -150,46 +269,12 @@ const MetricCard = ({ title, value, trend, trendUp, icon, color, bg }) => (
         <div>
             <p className="text-sm font-medium text-body mb-1">{title}</p>
             <h3 className="text-2xl font-bold text-heading mb-1">{value}</h3>
-            <span className={`text-xs font-medium flex items-center gap-1 ${trendUp ? 'text-green-600' : 'text-red-500'}`}>
-                <span className="material-symbols-outlined text-[14px]">{trendUp ? 'trending_up' : 'trending_down'}</span>
-                {trend} <span className="text-body font-normal">vs last week</span>
+            <span className="text-xs font-medium text-body">
+                {trend}
             </span>
         </div>
         <div className={`size-10 rounded-lg flex items-center justify-center ${bg} ${color}`}>
             <span className="material-symbols-outlined">{icon}</span>
-        </div>
-    </div>
-);
-
-const SessionRow = ({ time, items, status }) => (
-    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-page transition-colors cursor-default">
-        <div className="flex items-center gap-3">
-            <div className="size-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[16px]">accessibility_new</span>
-            </div>
-            <div>
-                <p className="text-sm font-medium text-heading">{items}</p>
-                <p className="text-xs text-body">{time}</p>
-            </div>
-        </div>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${status === 'Active' ? 'bg-green-100 text-green-700' :
-            status === 'Completed' ? 'bg-gray-100 text-gray-700' : 'bg-red-50 text-red-600'
-            }`}>
-            {status}
-        </span>
-    </div>
-);
-
-const ItemRow = ({ rank, name, tries }) => (
-    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-page transition-colors cursor-default">
-        <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-body w-4">{rank}</span>
-            <div>
-                <p className="text-sm font-medium text-heading">{name}</p>
-            </div>
-        </div>
-        <div className="text-sm text-heading font-semibold">
-            {tries} <span className="text-xs text-body font-normal">tries</span>
         </div>
     </div>
 );
