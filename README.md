@@ -256,7 +256,9 @@ This project is part of a Final Year Project (FYP).
 
 ## 👥 Contributors
 
-- Your Name - Developer
+- Khawaja Brothers Mazz Chishti
+- Hammad Ali 
+- Ussaid Zafar 
 
 ## 🆘 Support
 
