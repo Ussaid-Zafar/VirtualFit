@@ -142,12 +142,12 @@ const Inventory = () => {
         <div className="max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-heading">Inventory</h1>
-                    <p className="text-body mt-1">Manage your outlet's clothing catalog.</p>
+                    <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white uppercase tracking-tight">Inventory</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic">Manage your outlet's collection with precision.</p>
                 </div>
                 <button
                     onClick={openAddModal}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary-dark transition-colors shadow-sm"
+                    className="flex items-center gap-2 px-6 py-3 bg-primary text-white border-2 border-slate-900 dark:border-white rounded-sm font-bold uppercase text-xs hover:translate-y-1 shadow-3d hover:shadow-3d-hover transition-all"
                 >
                     <span className="material-symbols-outlined text-[20px]">add</span>
                     Add New Item
@@ -161,18 +161,18 @@ const Inventory = () => {
                 </div>
             )}
 
-            {/* Inventory Table */}
-            <div className="bg-white rounded-xl border border-border-gray shadow-sm overflow-hidden">
+            {/* Inventory Container */}
+            <div className="bg-surface-light dark:bg-surface-dark rounded-sm border-2 border-slate-900 dark:border-white shadow-3d overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-page border-b border-border-gray text-xs uppercase tracking-wider text-body font-semibold">
-                                <th className="px-6 py-4">Item Name</th>
-                                <th className="px-6 py-4">Category</th>
-                                <th className="px-6 py-4">Price</th>
-                                <th className="px-6 py-4">Stock Status</th>
-                                <th className="px-6 py-4">Type</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
+                            <tr className="bg-slate-50 dark:bg-slate-800 border-b-2 border-slate-900 dark:border-white text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                                <th className="px-6 py-5">Item Name</th>
+                                <th className="px-6 py-5">Category</th>
+                                <th className="px-6 py-5">Price</th>
+                                <th className="px-6 py-5">Status</th>
+                                <th className="px-6 py-5">Type</th>
+                                <th className="px-6 py-5 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border-gray">
@@ -254,37 +254,37 @@ const Inventory = () => {
 
             {/* Add/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-border-gray flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-heading">
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-surface-light dark:bg-surface-dark border-2 border-slate-900 dark:border-white rounded-sm shadow-3d w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b-2 border-slate-900 dark:border-white flex items-center justify-between bg-slate-50 dark:bg-slate-800">
+                            <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white uppercase tracking-tight">
                                 {editingProduct ? 'Edit Product' : 'Add New Product'}
                             </h2>
-                            <button onClick={() => setShowModal(false)} className="text-body hover:text-heading">
+                            <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-slate-900 dark:hover:text-white">
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
                             <div>
-                                <label className="block text-sm font-medium text-heading mb-1">Product Name</label>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Product Name</label>
                                 <input
                                     type="text"
                                     name="name"
                                     value={formData.name}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-3 py-2 border border-border-gray rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white placeholder:text-slate-400"
                                     placeholder="e.g. Blue Denim Jacket"
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-heading mb-1">Category</label>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Category</label>
                                     <select
                                         name="category"
                                         value={formData.category}
                                         onChange={handleChange}
-                                        className="w-full px-3 py-2 border border-border-gray rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white"
                                     >
                                         <option value="T-Shirts">T-Shirts</option>
                                         <option value="Shirts">Shirts</option>
@@ -296,7 +296,7 @@ const Inventory = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-heading mb-1">Price ($)</label>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Price ($)</label>
                                     <input
                                         type="number"
                                         name="price"
@@ -305,19 +305,19 @@ const Inventory = () => {
                                         required
                                         min="0"
                                         step="0.01"
-                                        className="w-full px-3 py-2 border border-border-gray rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white"
                                         placeholder="29.99"
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-heading mb-1">Stock Status</label>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Stock Status</label>
                                     <select
                                         name="stock_status"
                                         value={formData.stock_status}
                                         onChange={handleChange}
-                                        className="w-full px-3 py-2 border border-border-gray rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white"
                                     >
                                         <option value="in_stock">In Stock</option>
                                         <option value="low_stock">Low Stock</option>
@@ -325,12 +325,12 @@ const Inventory = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-heading mb-1">Clothing Type</label>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Type</label>
                                     <select
                                         name="clothing_type"
                                         value={formData.clothing_type}
                                         onChange={handleChange}
-                                        className="w-full px-3 py-2 border border-border-gray rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white"
                                     >
                                         <option value="upper">Upper Body</option>
                                         <option value="lower">Lower Body</option>
@@ -339,30 +339,30 @@ const Inventory = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-heading mb-1">Image URL (optional)</label>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Image URL</label>
                                 <input
                                     type="url"
                                     name="image_url"
                                     value={formData.image_url}
                                     onChange={handleChange}
-                                    className="w-full px-3 py-2 border border-border-gray rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white placeholder:text-slate-400"
                                     placeholder="https://example.com/image.jpg"
                                 />
                             </div>
-                            <div className="flex gap-3 pt-4">
+                            <div className="flex gap-4 pt-4">
                                 <button
                                     type="button"
                                     onClick={() => setShowModal(false)}
-                                    className="flex-1 px-4 py-2 border border-border-gray rounded-lg text-body hover:bg-page transition-colors"
+                                    className="flex-1 px-6 py-3 border-2 border-slate-200 dark:border-slate-700 rounded-sm text-xs font-bold uppercase text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary-dark transition-colors disabled:opacity-50"
+                                    className="flex-1 px-6 py-3 bg-primary text-white border-2 border-slate-900 dark:border-white rounded-sm font-bold uppercase text-xs hover:translate-y-1 shadow-3d hover:shadow-3d-hover transition-all disabled:opacity-50"
                                 >
-                                    {saving ? 'Saving...' : (editingProduct ? 'Update' : 'Add Product')}
+                                    {saving ? 'Saving...' : (editingProduct ? 'Update Item' : 'Add Item')}
                                 </button>
                             </div>
                         </form>

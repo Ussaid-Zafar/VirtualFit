@@ -12,6 +12,7 @@ import Sessions from './pages/dashboard/Sessions';
 import Settings from './pages/dashboard/Settings';
 
 import Profile from './pages/dashboard/Profile';
+import Subscription from './pages/dashboard/Subscription';
 import TryOn from './pages/TryOn';
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
             <Route path="sessions" element={<Sessions />} />
             <Route path="settings" element={<Settings />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="subscription" element={<Subscription />} />
           </Route>
         </Routes>
       </div>

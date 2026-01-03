@@ -50,35 +50,35 @@ const DashboardHome = () => {
             {/* Header Section */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-heading">Overview</h1>
-                    <p className="text-body mt-1">Welcome back{outlet?.name ? `, ${outlet.name}` : ''}! Here's what's happening at your outlet today.</p>
+                    <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white uppercase tracking-tight">Overview</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Welcome back{outlet?.name ? `, ${outlet.name}` : ''}! Your outlet is LIVE.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-4">
                     <Link
                         to="/dashboard/inventory"
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-border-gray rounded-lg text-heading font-medium hover:bg-page transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-800 border-2 border-slate-900 dark:border-white rounded-sm text-slate-900 dark:text-white font-bold uppercase text-xs hover:translate-y-1 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] transition-all"
                     >
                         <span className="material-symbols-outlined text-[20px]">add</span>
                         Add Item
                     </Link>
                     <button
                         onClick={openCustomerScreen}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary-dark transition-colors shadow-sm shadow-primary/20"
+                        className="flex items-center gap-2 px-6 py-3 bg-primary text-white border-2 border-slate-900 dark:border-white rounded-sm font-bold uppercase text-xs hover:translate-y-1 shadow-3d hover:shadow-3d-hover transition-all"
                     >
                         <span className="material-symbols-outlined text-[20px]">smart_display</span>
-                        Launch Customer Screen
+                        Launch Screen
                     </button>
                 </div>
             </div>
 
-            {/* Remote Control Section with REAL Products */}
-            <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl">
-                <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
-                    <span className="material-symbols-outlined">cast</span>
-                    Remote Control - Your Products
+            {/* Remote Control Section */}
+            <div className="mb-10 p-8 bg-surface-light dark:bg-surface-dark border-2 border-slate-900 dark:border-white rounded-sm shadow-3d">
+                <h3 className="font-display font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2 uppercase tracking-wider">
+                    <span className="material-symbols-outlined text-primary">cast</span>
+                    Remote Control
                 </h3>
-                <p className="text-sm text-blue-800 mb-4">
-                    Click "Launch Customer Screen" above, drag the new window to your second monitor, then click products below to display on the customer screen.
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">
+                    Launch the customer screen on another monitor, then tap products to display them instantly.
                 </p>
 
                 {loading ? (
@@ -172,85 +172,85 @@ const DashboardHome = () => {
             {/* Recent Activity / Inventory Snapshot */}
             <div className="grid lg:grid-cols-2 gap-6">
                 {/* Quick Actions */}
-                <div className="bg-white rounded-xl border border-border-gray shadow-sm p-6">
+                <div className="bg-surface-light dark:bg-surface-dark rounded-sm border-2 border-slate-900 dark:border-white shadow-3d p-6">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="font-bold text-lg text-heading">Quick Actions</h2>
+                        <h2 className="font-display font-bold text-lg text-slate-900 dark:text-white uppercase tracking-wider">Quick Actions</h2>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-4">
                         <Link
                             to="/dashboard/inventory"
-                            className="flex items-center gap-3 p-4 rounded-lg border border-border-gray hover:border-primary hover:bg-blue-50 transition-all"
+                            className="flex items-center gap-3 p-4 rounded-sm border-2 border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-all font-bold group"
                         >
-                            <span className="material-symbols-outlined text-primary">inventory_2</span>
+                            <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">inventory_2</span>
                             <div>
-                                <p className="font-medium text-heading">Manage Inventory</p>
-                                <p className="text-xs text-body">{products.length} items</p>
+                                <p className="text-xs text-slate-900 dark:text-white uppercase tracking-tight">Inventory</p>
+                                <p className="text-[10px] text-slate-500 uppercase">{products.length} items</p>
                             </div>
                         </Link>
                         <button
                             onClick={openCustomerScreen}
-                            className="flex items-center gap-3 p-4 rounded-lg border border-border-gray hover:border-primary hover:bg-blue-50 transition-all text-left"
+                            className="flex items-center gap-3 p-4 rounded-sm border-2 border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left font-bold group"
                         >
-                            <span className="material-symbols-outlined text-primary">cast</span>
+                            <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">cast</span>
                             <div>
-                                <p className="font-medium text-heading">Open Try-On</p>
-                                <p className="text-xs text-body">Customer screen</p>
+                                <p className="text-xs text-slate-900 dark:text-white uppercase tracking-tight">Try-On</p>
+                                <p className="text-[10px] text-slate-500 uppercase">Customer window</p>
                             </div>
                         </button>
                         <Link
                             to="/dashboard/analytics"
-                            className="flex items-center gap-3 p-4 rounded-lg border border-border-gray hover:border-primary hover:bg-blue-50 transition-all"
+                            className="flex items-center gap-3 p-4 rounded-sm border-2 border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-all font-bold group"
                         >
-                            <span className="material-symbols-outlined text-primary">analytics</span>
+                            <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">analytics</span>
                             <div>
-                                <p className="font-medium text-heading">View Analytics</p>
-                                <p className="text-xs text-body">Performance data</p>
+                                <p className="text-xs text-slate-900 dark:text-white uppercase tracking-tight">Analytics</p>
+                                <p className="text-[10px] text-slate-500 uppercase">Performance</p>
                             </div>
                         </Link>
                         <Link
                             to="/dashboard/settings"
-                            className="flex items-center gap-3 p-4 rounded-lg border border-border-gray hover:border-primary hover:bg-blue-50 transition-all"
+                            className="flex items-center gap-3 p-4 rounded-sm border-2 border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-all font-bold group"
                         >
-                            <span className="material-symbols-outlined text-primary">settings</span>
+                            <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">settings</span>
                             <div>
-                                <p className="font-medium text-heading">Settings</p>
-                                <p className="text-xs text-body">Configure outlet</p>
+                                <p className="text-xs text-slate-900 dark:text-white uppercase tracking-tight">Settings</p>
+                                <p className="text-[10px] text-slate-500 uppercase">Configure</p>
                             </div>
                         </Link>
                     </div>
                 </div>
 
                 {/* Recent Products */}
-                <div className="bg-white rounded-xl border border-border-gray shadow-sm p-6">
+                <div className="bg-surface-light dark:bg-surface-dark rounded-sm border-2 border-slate-900 dark:border-white shadow-3d p-6">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="font-bold text-lg text-heading">Recent Products</h2>
-                        <Link to="/dashboard/inventory" className="text-sm text-primary font-medium hover:underline">View All</Link>
+                        <h2 className="font-display font-bold text-lg text-slate-900 dark:text-white uppercase tracking-wider">Recent Products</h2>
+                        <Link to="/dashboard/inventory" className="text-xs font-bold text-primary hover:underline uppercase">View All</Link>
                     </div>
                     {products.length === 0 ? (
-                        <div className="text-center py-8 text-body">
-                            <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">inventory_2</span>
-                            <p>No products yet</p>
-                            <Link to="/dashboard/inventory" className="text-primary hover:underline text-sm">Add products</Link>
+                        <div className="text-center py-12">
+                            <span className="material-symbols-outlined text-5xl text-slate-200 dark:text-slate-700 mb-4">inventory_2</span>
+                            <p className="text-slate-500 font-bold uppercase text-[10px]">No products yet</p>
+                            <Link to="/dashboard/inventory" className="text-primary hover:underline text-[10px] font-bold uppercase mt-2 block">Add products</Link>
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {products.slice(0, 5).map((product, index) => (
-                                <div key={product.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-page transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-sm font-bold text-body w-4">{index + 1}</span>
-                                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                                <div key={product.id} className="flex items-center justify-between p-3 rounded-sm border-2 border-transparent hover:border-slate-900 dark:hover:border-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group">
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-xs font-bold text-slate-400 w-4 font-display">0{index + 1}</span>
+                                        <div className="w-12 h-12 rounded-sm border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden group-hover:rotate-3 transition-transform">
                                             {product.image_url ? (
                                                 <img src={product.image_url} alt="" className="w-full h-full object-cover" />
                                             ) : (
-                                                <span className="material-symbols-outlined text-[16px] text-gray-400">checkroom</span>
+                                                <span className="material-symbols-outlined text-xl text-slate-300">checkroom</span>
                                             )}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-heading">{product.name}</p>
-                                            <p className="text-xs text-body">{product.category}</p>
+                                            <p className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight">{product.name}</p>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase">{product.category}</p>
                                         </div>
                                     </div>
-                                    <div className="text-sm text-heading font-semibold">
+                                    <div className="text-sm font-display font-bold text-primary">
                                         ${product.price.toFixed(2)}
                                     </div>
                                 </div>
@@ -264,17 +264,17 @@ const DashboardHome = () => {
 };
 
 
-const MetricCard = ({ title, value, trend, trendUp, icon, color, bg }) => (
-    <div className="bg-white p-6 rounded-xl border border-border-gray shadow-sm flex items-start justify-between">
+const MetricCard = ({ title, value, trend, icon, color, bg }) => (
+    <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-start justify-between">
         <div>
-            <p className="text-sm font-medium text-body mb-1">{title}</p>
-            <h3 className="text-2xl font-bold text-heading mb-1">{value}</h3>
-            <span className="text-xs font-medium text-body">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{title}</p>
+            <h3 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-1">{value}</h3>
+            <span className="text-[10px] font-bold text-primary uppercase">
                 {trend}
             </span>
         </div>
-        <div className={`size-10 rounded-lg flex items-center justify-center ${bg} ${color}`}>
-            <span className="material-symbols-outlined">{icon}</span>
+        <div className={`size-12 rounded-lg border-2 border-slate-900 dark:border-white flex items-center justify-center transform rotate-3 shadow-lg ${bg} ${color}`}>
+            <span className="material-symbols-outlined text-2xl">{icon}</span>
         </div>
     </div>
 );

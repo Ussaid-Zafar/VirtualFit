@@ -61,25 +61,25 @@ const Analytics = () => {
         <div className="max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-heading">Analytics</h1>
-                    <p className="text-body mt-1">Insights into your outlet's inventory and performance.</p>
+                    <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white uppercase tracking-tight">Analytics</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic">Deep dive into your outlet's inventory performance.</p>
                 </div>
-                <div className="flex items-center bg-white border border-border-gray rounded-lg p-1">
+                <div className="flex items-center bg-white dark:bg-slate-800 border-2 border-slate-900 dark:border-white rounded-sm p-1 shadow-3d-small">
                     <button
                         onClick={() => setSelectedPeriod('7')}
-                        className={`px-3 py-1 text-sm font-medium rounded transition-colors ${selectedPeriod === '7' ? 'bg-page text-heading shadow-sm' : 'text-body hover:text-heading'}`}
+                        className={`px-4 py-1.5 text-xs font-bold uppercase rounded-sm transition-all ${selectedPeriod === '7' ? 'bg-primary text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                     >
                         7 Days
                     </button>
                     <button
                         onClick={() => setSelectedPeriod('30')}
-                        className={`px-3 py-1 text-sm font-medium rounded transition-colors ${selectedPeriod === '30' ? 'bg-page text-heading shadow-sm' : 'text-body hover:text-heading'}`}
+                        className={`px-4 py-1.5 text-xs font-bold uppercase rounded-sm transition-all ${selectedPeriod === '30' ? 'bg-primary text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                     >
                         30 Days
                     </button>
                     <button
                         onClick={() => setSelectedPeriod('90')}
-                        className={`px-3 py-1 text-sm font-medium rounded transition-colors ${selectedPeriod === '90' ? 'bg-page text-heading shadow-sm' : 'text-body hover:text-heading'}`}
+                        className={`px-4 py-1.5 text-xs font-bold uppercase rounded-sm transition-all ${selectedPeriod === '90' ? 'bg-primary text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                     >
                         90 Days
                     </button>
@@ -88,56 +88,48 @@ const Analytics = () => {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white p-6 rounded-xl border border-border-gray shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-body">Total Products</p>
-                            <p className="text-2xl font-bold text-heading">{products.length}</p>
-                        </div>
-                        <div className="size-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                            <span className="material-symbols-outlined">checkroom</span>
-                        </div>
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Products</p>
+                        <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">{products.length}</p>
+                    </div>
+                    <div className="size-10 rounded-lg bg-blue-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform rotate-3 shadow-lg">
+                        <span className="material-symbols-outlined">checkroom</span>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-xl border border-border-gray shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-body">Categories</p>
-                            <p className="text-2xl font-bold text-heading">{categoryStats.length}</p>
-                        </div>
-                        <div className="size-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                            <span className="material-symbols-outlined">category</span>
-                        </div>
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Categories</p>
+                        <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">{categoryStats.length}</p>
+                    </div>
+                    <div className="size-10 rounded-lg bg-purple-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform -rotate-3 shadow-lg">
+                        <span className="material-symbols-outlined">category</span>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-xl border border-border-gray shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-body">Inventory Value</p>
-                            <p className="text-2xl font-bold text-heading">${getTotalValue().toFixed(2)}</p>
-                        </div>
-                        <div className="size-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
-                            <span className="material-symbols-outlined">payments</span>
-                        </div>
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Value</p>
+                        <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">${getTotalValue().toFixed(2)}</p>
+                    </div>
+                    <div className="size-10 rounded-lg bg-green-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform rotate-6 shadow-lg">
+                        <span className="material-symbols-outlined">payments</span>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-xl border border-border-gray shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-body">In Stock</p>
-                            <p className="text-2xl font-bold text-heading">{stockStats.in_stock}</p>
-                        </div>
-                        <div className="size-10 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
-                            <span className="material-symbols-outlined">inventory_2</span>
-                        </div>
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">In Stock</p>
+                        <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">{stockStats.in_stock}</p>
+                    </div>
+                    <div className="size-10 rounded-lg bg-teal-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform -rotate-6 shadow-lg">
+                        <span className="material-symbols-outlined">inventory_2</span>
                     </div>
                 </div>
             </div>
 
             <div className="grid lg:grid-cols-2 gap-6 mb-8">
                 {/* Stock Status Chart */}
-                <div className="bg-white p-6 rounded-xl border border-border-gray shadow-sm">
-                    <h3 className="font-bold text-lg text-heading mb-6">Stock Status Overview</h3>
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d">
+                    <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white uppercase tracking-tight mb-6">Stock Status Overview</h3>
                     {loading ? (
                         <div className="h-64 flex items-center justify-center">
                             <span className="material-symbols-outlined animate-spin text-4xl text-gray-300">progress_activity</span>
@@ -192,8 +184,8 @@ const Analytics = () => {
                 </div>
 
                 {/* Categories Chart */}
-                <div className="bg-white p-6 rounded-xl border border-border-gray shadow-sm">
-                    <h3 className="font-bold text-lg text-heading mb-6">Products by Category</h3>
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d">
+                    <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white uppercase tracking-tight mb-6">Products by Category</h3>
                     {loading ? (
                         <div className="h-64 flex items-center justify-center">
                             <span className="material-symbols-outlined animate-spin text-4xl text-gray-300">progress_activity</span>
@@ -229,10 +221,10 @@ const Analytics = () => {
             </div>
 
             {/* Products Table */}
-            <div className="bg-white rounded-xl border border-border-gray shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-border-gray flex items-center justify-between">
-                    <h3 className="font-bold text-lg text-heading">Product Inventory</h3>
-                    <button onClick={fetchProducts} className="text-sm text-primary hover:underline flex items-center gap-1">
+            <div className="bg-surface-light dark:bg-surface-dark rounded-sm border-2 border-slate-900 dark:border-white shadow-3d overflow-hidden">
+                <div className="px-6 py-4 border-b-2 border-slate-900 dark:border-white bg-slate-50 dark:bg-slate-800 flex items-center justify-between">
+                    <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white uppercase tracking-tight">Product Inventory</h3>
+                    <button onClick={fetchProducts} className="text-xs font-bold uppercase text-primary hover:underline flex items-center gap-1">
                         <span className="material-symbols-outlined text-[16px]">refresh</span>
                         Refresh
                     </button>
@@ -265,8 +257,8 @@ const Analytics = () => {
                                     <td className="px-6 py-3 text-heading">${product.price.toFixed(2)}</td>
                                     <td className="px-6 py-3">
                                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${product.stock_status === 'in_stock' ? 'bg-green-50 text-green-600' :
-                                                product.stock_status === 'low_stock' ? 'bg-orange-50 text-orange-600' :
-                                                    'bg-red-50 text-red-600'
+                                            product.stock_status === 'low_stock' ? 'bg-orange-50 text-orange-600' :
+                                                'bg-red-50 text-red-600'
                                             }`}>
                                             {product.stock_status === 'in_stock' ? 'In Stock' :
                                                 product.stock_status === 'low_stock' ? 'Low Stock' : 'Out of Stock'}
