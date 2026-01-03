@@ -31,5 +31,3 @@ backend/app/**/__pycache__/
 *.pyc
 *.pyo
 backend/.env
-backend/*.db
-backend/uploads/
