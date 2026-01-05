@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { productsAPI } from '../services/api';
+import { productsAPI, gesturesAPI } from '../services/api';
 
 const TryOn = () => {
     const [selectedUpper, setSelectedUpper] = useState(null); // Shirt/Top
@@ -9,8 +9,8 @@ const TryOn = () => {
     const [activeCategory, setActiveCategory] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Camera state
-    const [cameraActive, setCameraActive] = useState(false);
+    // Camera state - Default to true for Backend Stream
+    const [cameraActive, setCameraActive] = useState(true);
     const [cameraError, setCameraError] = useState('');
     const videoRef = useRef(null);
     const streamRef = useRef(null);
@@ -20,6 +20,11 @@ const TryOn = () => {
     const [isScanning, setIsScanning] = useState(false);
     const [scanProgress, setScanProgress] = useState(0); // 0-100%
     const [scanComplete, setScanComplete] = useState(false);
+
+    // Gesture Control State - Default to true
+    const [gestureMode, setGestureMode] = useState(true);
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const [isClicked, setIsClicked] = useState(false);
 
 
 
@@ -48,9 +53,23 @@ const TryOn = () => {
         channel.onmessage = (event) => {
             if (event.data.type === 'SELECT_ITEM') {
                 handleProductSelect(event.data.payload);
+            } else if (event.data.type === 'CLOSE_SCREEN') {
+                window.close();
             }
         };
-        return () => channel.close();
+
+        const handleUnload = () => {
+            // Send multiple messages to ensure the Dashboard catches it
+            channel.postMessage({ type: 'SCREEN_CLOSED' });
+            channel.postMessage({ type: 'SCREEN_CLOSED' });
+        };
+        window.addEventListener('unload', handleUnload);
+
+        return () => {
+            handleUnload();
+            channel.close();
+            window.removeEventListener('unload', handleUnload);
+        };
     }, []);
 
     // Prevent Back Navigation
@@ -63,62 +82,61 @@ const TryOn = () => {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
-    // Start Camera
-    const startCamera = async () => {
-        try {
-            setCameraError('');
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    facingMode: 'user'
-                }
-            });
-
-            streamRef.current = stream;
-            setCameraActive(true);
-        } catch (err) {
-            console.error('Camera error:', err);
-            setCameraError('Unable to access camera. Please allow camera permissions.');
-        }
-    };
-
-    // Connect stream to video element when camera becomes active
+    // Simplified Camera Management - Handled by Backend
     useEffect(() => {
-        if (cameraActive && videoRef.current && streamRef.current) {
-            videoRef.current.srcObject = streamRef.current;
-            videoRef.current.play().catch(err => console.error('Video play error:', err));
-        }
-    }, [cameraActive]);
+        // If the view mounts, we assume the backend is already started by the Dashboard
+        setCameraActive(true);
+        setGestureMode(true);
+    }, []);
 
-
-    // Stop Camera
-    const stopCamera = () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-        setCameraActive(false);
-        setIsScanning(false);
-        setScanProgress(0);
-        setScanComplete(false);
-    };
-
-    // Cleanup camera on unmount
+    // Cleanup camera and gestures on unmount
     useEffect(() => {
         return () => {
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
+            // Ensure gestures are stopped when leaving page
+            gesturesAPI.stop().catch(console.error);
         };
     }, []);
 
-    // Handle "Start Capturing Body" button click
+    // Track mouse position for Virtual Cursor
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (gestureMode) {
+                setMousePos({ x: e.clientX, y: e.clientY });
+            }
+        };
+
+        const handleMouseDown = () => {
+            if (gestureMode) setIsClicked(true);
+        };
+
+        const handleMouseUp = () => {
+            if (gestureMode) setIsClicked(false);
+        };
+
+        if (gestureMode) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mousedown', handleMouseDown);
+            window.addEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'none';
+        } else {
+            document.body.style.cursor = 'default';
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mousedown', handleMouseDown);
+            window.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'default';
+        };
+    }, [gestureMode]);
+
+    // Handle "Start Capturing Body" button click - NO MORE CAMERA LOGIC, JUST ANIMATION
     const handleStartCapture = () => {
-        setShowTutorial(true);
+        setIsScanning(true);
+        simulateBodyScan();
     };
 
     // Handle ESC key to close tutorial
@@ -133,15 +151,11 @@ const TryOn = () => {
     }, [showTutorial]);
 
 
-    // After tutorial, start camera and scanning
+    // Integrated scan completion handler
     const handleTutorialComplete = async () => {
-        setShowTutorial(false);
-        await startCamera();
-        // Start body scanning after camera is active
-        setTimeout(() => {
-            setIsScanning(true);
-            simulateBodyScan();
-        }, 500);
+        // This is now purely for manual scan if needed
+        setIsScanning(true);
+        simulateBodyScan();
     };
 
     // Simulate body scanning progress (temporary - will be replaced by backend)
@@ -245,57 +259,55 @@ const TryOn = () => {
                         {/* Gesture Cards Grid */}
                         <div className="grid grid-cols-3 gap-6 mb-12">
 
-                            {/* Card 1 - Show Hands */}
+                            {/* Card 1 - Movement */}
                             <div className="group relative p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-white/20 transition-all duration-300 hover:bg-white/[0.05]">
                                 <div className="absolute -top-3 -left-3 size-8 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center">
                                     <span className="text-sm font-semibold text-white/80">1</span>
                                 </div>
                                 <div className="size-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                    <span className="material-symbols-outlined text-emerald-400 text-3xl">front_hand</span>
+                                    <span className="material-symbols-outlined text-emerald-400 text-3xl">pan_tool_alt</span>
                                 </div>
-                                <h3 className="text-center font-medium text-white mb-2">Show Hands</h3>
+                                <h3 className="text-center font-medium text-white mb-2">Move Pointer</h3>
                                 <p className="text-center text-sm text-white/40 leading-relaxed">
-                                    Raise your hands in front of the camera to activate gesture detection
+                                    Raise your <span className="text-emerald-400">Index Finger</span> and move it to control the virtual mouse
                                 </p>
                             </div>
 
-                            {/* Card 2 - Scroll Up */}
+                            {/* Card 2 - Click */}
                             <div className="group relative p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-white/20 transition-all duration-300 hover:bg-white/[0.05]">
                                 <div className="absolute -top-3 -left-3 size-8 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center">
                                     <span className="text-sm font-semibold text-white/80">2</span>
                                 </div>
                                 <div className="size-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                    <span className="material-symbols-outlined text-blue-400 text-3xl">swipe_up</span>
+                                    <span className="material-symbols-outlined text-blue-400 text-3xl">ads_click</span>
                                 </div>
-                                <h3 className="text-center font-medium text-white mb-2">Swipe Up</h3>
+                                <h3 className="text-center font-medium text-white mb-2">Select Item</h3>
                                 <p className="text-center text-sm text-white/40 leading-relaxed">
-                                    Move your hand upward to scroll through the product collection
+                                    <span className="text-blue-400">Pinch</span> your Index and Middle fingers together to click and select
                                 </p>
                             </div>
 
-                            {/* Card 3 - Scroll Down */}
+                            {/* Card 3 - Scroll */}
                             <div className="group relative p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-white/20 transition-all duration-300 hover:bg-white/[0.05]">
                                 <div className="absolute -top-3 -left-3 size-8 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center">
                                     <span className="text-sm font-semibold text-white/80">3</span>
                                 </div>
                                 <div className="size-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                    <span className="material-symbols-outlined text-violet-400 text-3xl">swipe_down</span>
+                                    <span className="material-symbols-outlined text-violet-400 text-3xl">reorder</span>
                                 </div>
-                                <h3 className="text-center font-medium text-white mb-2">Swipe Down</h3>
+                                <h3 className="text-center font-medium text-white mb-2">Scroll List</h3>
                                 <p className="text-center text-sm text-white/40 leading-relaxed">
-                                    Move your hand downward to browse in the opposite direction
+                                    Keep fingers <span className="text-violet-400">up but separated</span> to scroll through the product list
                                 </p>
-                            </div>
-                        </div>
+                            </div>                        </div>
 
-                        {/* Coming Soon Notice */}
-                        <div className="flex items-center justify-center gap-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 mb-10">
-                            <span className="material-symbols-outlined text-amber-400">schedule</span>
-                            <p className="text-sm text-amber-200/70">
-                                <span className="font-medium text-amber-300">Product selection gesture</span> will be available in the next update
+                        {/* Gesture Hint */}
+                        <div className="flex items-center justify-center gap-4 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 mb-10">
+                            <span className="material-symbols-outlined text-indigo-400">back_hand</span>
+                            <p className="text-sm text-indigo-200/70">
+                                <span className="font-medium text-indigo-300">Gesture Control</span> will start automatically when you continue
                             </p>
                         </div>
-
                         {/* Action Button */}
                         <div className="flex justify-center">
                             <button
@@ -485,15 +497,13 @@ const TryOn = () => {
                 {/* Main Camera/Preview Area */}
                 <div className="flex-1 relative flex flex-col rounded-3xl overflow-hidden bg-slate-900/50 backdrop-blur-sm border border-white/5">
 
-                    {/* Camera View / Video Feed */}
-                    <div className="absolute inset-0">
+                    {/* Camera View / Video Feed / Backend Stream */}
+                    <div className="absolute inset-0 bg-slate-950">
                         {cameraActive ? (
-                            <video
-                                ref={videoRef}
-                                autoPlay
-                                playsInline
-                                muted
-                                className="w-full h-full object-cover transform scale-x-[-1]"
+                            <img
+                                src="http://localhost:5000/api/gestures/video_feed"
+                                alt="Gesture Feed"
+                                className="w-full h-full object-cover"
                             />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center">
@@ -508,13 +518,7 @@ const TryOn = () => {
                         )}
                     </div>
 
-                    {/* Camera Status Indicator */}
-                    {cameraActive && (
-                        <div className="absolute top-8 right-8 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/90 backdrop-blur-sm">
-                            <span className="size-2 rounded-full bg-white animate-pulse"></span>
-                            <span className="text-white text-sm font-medium">LIVE</span>
-                        </div>
-                    )}
+                    {/* Redundant LIVE indicator removed */}
 
                     {/* Top Bar */}
                     <header className="relative z-10 p-8 flex items-center justify-between">
@@ -527,8 +531,31 @@ const TryOn = () => {
                                 <span className="text-xs text-white/40 tracking-wide uppercase">Virtual Try-On</span>
                             </div>
                         </div>
-                    </header>
 
+                        {/* Gesture Status Indicator */}
+                        <div className="flex items-center gap-4">
+                            {gestureMode && (
+                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                                    <span className="size-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    AI Tracking Active
+                                </div>
+                            )}
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await gesturesAPI.stop();
+                                        window.close();
+                                    } catch (err) {
+                                        window.close();
+                                    }
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-lg"
+                            >
+                                <span className="material-symbols-outlined text-lg">cancel</span>
+                                Stop & Close
+                            </button>
+                        </div>
+                    </header>
                     {/* Main Camera Area - Spacer */}
                     <div className="flex-1 relative">
                         {/* Camera feed fills this area via absolute positioning */}
@@ -537,18 +564,21 @@ const TryOn = () => {
                     {/* Bottom Controls */}
                     <div className="relative z-10 p-8">
                         <div className="flex items-center justify-center gap-4">
-                            {/* Start/Stop Capturing Body Button */}
+                            {/* Start Capturing Body Button - STATIC STYLE */}
                             <button
-                                onClick={cameraActive ? stopCamera : handleStartCapture}
-                                className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-semibold hover:scale-105 transition-all shadow-lg group ${cameraActive
-                                    ? 'bg-red-500/80 backdrop-blur-xl border border-red-400/30 text-white hover:bg-red-600/80'
-                                    : 'bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15'
+                                onClick={handleStartCapture}
+                                disabled={isScanning || scanComplete}
+                                className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-semibold transition-all shadow-xl group ${isScanning || scanComplete
+                                    ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 cursor-not-allowed'
+                                    : 'bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105'
                                     }`}
                             >
-                                <span className="material-symbols-outlined text-2xl group-hover:animate-pulse">
-                                    {cameraActive ? 'stop_circle' : 'body_system'}
+                                <span className={`material-symbols-outlined text-2xl ${isScanning ? 'animate-spin' : 'group-hover:animate-pulse'}`}>
+                                    {isScanning ? 'progress_activity' : scanComplete ? 'check_circle' : 'body_system'}
                                 </span>
-                                <span className="text-lg">{cameraActive ? 'Stop Camera' : 'Start Capturing Body'}</span>
+                                <span className="text-lg">
+                                    {isScanning ? 'Scanning Body...' : scanComplete ? 'Body Scanned' : 'Start Capturing Body'}
+                                </span>
                             </button>
 
 
@@ -750,6 +780,32 @@ const TryOn = () => {
                     </div>
                 </div>
             </div>
+            {/* ==================== VIRTUAL CURSOR ==================== */}
+            {gestureMode && (
+                <div
+                    className="fixed z-[9999] pointer-events-none transition-transform duration-75 ease-out"
+                    style={{
+                        left: mousePos.x,
+                        top: mousePos.y,
+                        transform: `translate(-50%, -50%) scale(${isClicked ? 0.8 : 1})`,
+                    }}
+                >
+                    {/* Main glowing dot */}
+                    <div className={`relative size-8 rounded-full border-2 border-white flex items-center justify-center transition-all duration-150 ${isClicked ? 'bg-indigo-500 shadow-[0_0_25px_rgba(99,102,241,0.8)]' : 'bg-white/20 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.5)]'}`}>
+                        {/* Target icon */}
+                        <div className={`size-1 rounded-full bg-white ${isClicked ? 'scale-0' : 'scale-100'}`}></div>
+
+                        {/* Outer rings */}
+                        <div className="absolute inset-[-4px] rounded-full border border-white/20 animate-spin-slow"></div>
+                        <div className="absolute inset-[-8px] rounded-full border border-white/10 animate-pulse"></div>
+                    </div>
+
+                    {/* Visual label */}
+                    <div className="absolute top-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 rounded bg-black/80 text-[8px] font-bold text-white uppercase tracking-tighter border border-white/10 backdrop-blur-sm">
+                        Virtual Pointer
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

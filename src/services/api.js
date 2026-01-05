@@ -218,6 +218,19 @@ export const subscriptionsAPI = {
     }
 };
 
+// Gestures API
+export const gesturesAPI = {
+    start: async () => {
+        return apiRequest('/gestures/start', { method: 'POST' });
+    },
+    stop: async () => {
+        return apiRequest('/gestures/stop', { method: 'POST' });
+    },
+    status: async () => {
+        return apiRequest('/gestures/status');
+    }
+};
+
 
 // Sessions API
 export const sessionsAPI = {

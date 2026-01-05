@@ -6,8 +6,24 @@ __pycache__/
 # Virtual environments
 venv/
 env/
+**/venv/
+**/env/
 .env
 *.env
+
+# Large A.I. Models
+*.pth
+*.h5
+*.tflite
+*.pb
+*.onnx
+*.weights
+*.model
+*.bin
+
+
+# Models
+Models/product segmentation/*
 
 # Node modules
 node_modules/

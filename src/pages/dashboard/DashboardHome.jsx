@@ -1,18 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { productsAPI, authAPI } from '../../services/api';
+import { productsAPI, authAPI, gesturesAPI } from '../../services/api';
 
 const DashboardHome = () => {
     const [channel, setChannel] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isLaunching, setIsLaunching] = useState(false);
+    const [launchStatus, setLaunchStatus] = useState('');
+    const [isScreenActive, setIsScreenActive] = useState(false);
 
     const outlet = authAPI.getOutlet();
 
     useEffect(() => {
         const newChannel = new BroadcastChannel('virtual-fit-app');
+        newChannel.onmessage = (event) => {
+            if (event.data.type === 'SCREEN_CLOSED') {
+                setIsScreenActive(false);
+                // ALWAYS stop gestures when screen is closed!
+                gesturesAPI.stop().catch(err => console.error("Auto-stop failed:", err));
+            }
+        };
         setChannel(newChannel);
-        return () => newChannel.close();
+
+        return () => {
+            // If the dashboard itself is closed, we should ideally stop gestures too
+            gesturesAPI.stop().catch(() => { });
+            newChannel.close();
+        };
     }, []);
 
     // Fetch products on mount
@@ -34,9 +49,62 @@ const DashboardHome = () => {
         }
     };
 
-    const openCustomerScreen = () => {
-        // Open the Try-On URL in a new popup window
-        window.open('/try-on', 'CustomerScreen', 'width=1280,height=720,menubar=no,toolbar=no,location=no');
+    const openCustomerScreen = async () => {
+        if (isScreenActive) {
+            try {
+                setIsLaunching(true);
+                setLaunchStatus('Stopping Virtual Try...');
+
+                const res = await gesturesAPI.stop();
+                if (res.success) {
+                    setIsScreenActive(false);
+                    setLaunchStatus('Virtual Try Stopped.');
+
+                    // Notify the pop-up
+                    if (channel) {
+                        channel.postMessage({ type: 'CLOSE_SCREEN' });
+                    }
+
+                    setTimeout(() => {
+                        setIsLaunching(false);
+                        setLaunchStatus('');
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error('Stop error:', err);
+                setIsScreenActive(false);
+                setIsLaunching(false);
+                setLaunchStatus('');
+            }
+        } else {
+            try {
+                setIsLaunching(true);
+                setLaunchStatus('Initializing AI Engine...');
+
+                // Start the gesture engine in the backend
+                const res = await gesturesAPI.start();
+
+                if (res.success) {
+                    setLaunchStatus('Engine Ready! Opening View...');
+                    setIsScreenActive(true); // Update UI immediately
+
+                    setTimeout(() => {
+                        window.open('/try-on', 'CustomerScreen', 'width=1280,height=720,menubar=no,toolbar=no,location=no');
+                        setIsLaunching(false);
+                        setLaunchStatus('');
+                    }, 1500);
+                } else {
+                    throw new Error(res.error || 'Failed to start engine');
+                }
+            } catch (err) {
+                console.error('Launch error:', err);
+                setLaunchStatus('Error: Backend not responding.');
+                setTimeout(() => {
+                    setIsLaunching(false);
+                    setLaunchStatus('');
+                }, 3000);
+            }
+        }
     };
 
     const sendToCustomerScreen = (item) => {
@@ -48,26 +116,41 @@ const DashboardHome = () => {
     return (
         <div className="max-w-7xl mx-auto">
             {/* Header Section */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <div>
                     <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white uppercase tracking-tight">Overview</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Welcome back{outlet?.name ? `, ${outlet.name}` : ''}! Your outlet is LIVE.</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Welcome back{outlet?.name ? `, ${outlet.name}` : ''}! Manage your AI store below.</p>
                 </div>
-                <div className="flex gap-4">
-                    <Link
-                        to="/dashboard/inventory"
-                        className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-800 border-2 border-slate-900 dark:border-white rounded-sm text-slate-900 dark:text-white font-bold uppercase text-xs hover:translate-y-1 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] transition-all"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">add</span>
-                        Add Item
-                    </Link>
-                    <button
-                        onClick={openCustomerScreen}
-                        className="flex items-center gap-2 px-6 py-3 bg-primary text-white border-2 border-slate-900 dark:border-white rounded-sm font-bold uppercase text-xs hover:translate-y-1 shadow-3d hover:shadow-3d-hover transition-all"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">smart_display</span>
-                        Launch Screen
-                    </button>
+                <div className="flex flex-col items-end gap-2">
+                    <div className="flex gap-4">
+                        <Link
+                            to="/dashboard/inventory"
+                            className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-800 border-2 border-slate-900 dark:border-white rounded-sm text-slate-900 dark:text-white font-bold uppercase text-xs hover:translate-y-1 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] transition-all"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">add</span>
+                            Add Item
+                        </Link>
+                        <button
+                            onClick={openCustomerScreen}
+                            disabled={isLaunching}
+                            className={`flex items-center gap-2 px-6 py-3 border-2 border-slate-900 dark:border-white rounded-sm font-bold uppercase text-xs transition-all ${isLaunching
+                                ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                                : isScreenActive
+                                    ? 'bg-red-500 text-white border-red-600 hover:bg-red-600 shadow-[4px_4px_0px_0px_rgba(153,27,27,1)]'
+                                    : 'bg-primary text-white hover:translate-y-1 shadow-3d hover:shadow-3d-hover'
+                                }`}
+                        >
+                            <span className={`material-symbols-outlined text-[20px] ${isLaunching ? 'animate-spin' : ''}`}>
+                                {isLaunching ? 'progress_activity' : isScreenActive ? 'stop_circle' : 'smart_display'}
+                            </span>
+                            {isLaunching ? 'Processing...' : isScreenActive ? 'Stop Virtual Try' : 'Launch Screen'}
+                        </button>
+                    </div>
+                    {launchStatus && (
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${launchStatus.includes('Error') ? 'text-red-500' : 'text-primary'}`}>
+                            {launchStatus}
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -141,11 +224,11 @@ const DashboardHome = () => {
                     bg="bg-blue-50"
                 />
                 <MetricCard
-                    title="Active Sessions"
+                    title="Total Scans"
                     value="0"
-                    trend="Live now"
+                    trend="Today"
                     trendUp={true}
-                    icon="devices"
+                    icon="person_search"
                     color="text-teal-600"
                     bg="bg-teal-50"
                 />
@@ -189,12 +272,24 @@ const DashboardHome = () => {
                         </Link>
                         <button
                             onClick={openCustomerScreen}
-                            className="flex items-center gap-3 p-4 rounded-sm border-2 border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left font-bold group"
+                            disabled={isLaunching}
+                            className={`flex items-center gap-3 p-4 rounded-sm border-2 transition-all text-left font-bold group ${isLaunching
+                                ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
+                                : isScreenActive
+                                    ? 'bg-red-50 border-red-200 hover:border-red-500 text-red-700'
+                                    : 'border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary hover:bg-slate-50 dark:hover:bg-slate-800'
+                                }`}
                         >
-                            <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">cast</span>
+                            <span className={`material-symbols-outlined group-hover:scale-110 transition-transform ${isScreenActive ? 'text-red-500' : 'text-primary'}`}>
+                                {isLaunching ? 'progress_activity' : isScreenActive ? 'stop_circle' : 'cast'}
+                            </span>
                             <div>
-                                <p className="text-xs text-slate-900 dark:text-white uppercase tracking-tight">Try-On</p>
-                                <p className="text-[10px] text-slate-500 uppercase">Customer window</p>
+                                <p className="text-xs text-slate-900 dark:text-white uppercase tracking-tight">
+                                    {isScreenActive ? 'Stop Try-On' : 'Try-On'}
+                                </p>
+                                <p className={`text-[10px] uppercase ${isScreenActive ? 'text-red-500/70' : 'text-slate-500'}`}>
+                                    {isLaunching ? 'Processing...' : isScreenActive ? 'Close session' : 'Customer window'}
+                                </p>
                             </div>
                         </button>
                         <Link

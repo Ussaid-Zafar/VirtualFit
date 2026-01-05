@@ -186,29 +186,6 @@ VirtualFit/
 | POST | `/api/sessions` | Create try-on session |
 | GET | `/api/sessions/analytics` | Get session analytics |
 
-## 🧪 Testing
-
-### Test Voucher
-A test voucher is available for free access:
-```
-Code: TESTFREE
-Discount: 100% OFF (FREE)
-Valid for: All plans
-```
-
-### Creating Custom Vouchers
-```python
-# In Flask shell or script
-from app.models.subscription import Voucher
-voucher = Voucher(
-    code='NEWCODE',
-    discount_type='percentage',  # or 'fixed', 'free'
-    discount_value=50,  # 50% off
-    applicable_plans='starter,professional,enterprise'
-)
-db.session.add(voucher)
-db.session.commit()
-```
 
 ## 📱 Usage
 
