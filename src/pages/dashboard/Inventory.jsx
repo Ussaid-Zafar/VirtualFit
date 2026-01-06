@@ -8,11 +8,31 @@ const Inventory = () => {
     const [error, setError] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
+    const [previewImage, setPreviewImage] = useState(null); // { src, alt, allImages }
     const [saving, setSaving] = useState(false);
     const [productLimit, setProductLimit] = useState({ limit: null, current: 0, plan: 'trial' });
 
     const outlet = authAPI.getOutlet();
     const navigate = useNavigate();
+
+    // Search & Filter State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterCategory, setFilterCategory] = useState('All');
+
+    // Derived state
+    const defaultCategories = ['T-Shirts', 'Shirts', 'Pants', 'Jeans', 'Dresses', 'Outerwear'];
+    // Combine defaults with any custom categories found in products
+    const availableCategories = Array.from(new Set([
+        ...defaultCategories,
+        ...products.map(p => p.category).filter(Boolean)
+    ])).sort();
+
+    const filteredProducts = products.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            product.category.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = filterCategory === 'All' || product.category === filterCategory;
+        return matchesSearch && matchesCategory;
+    });
 
     // Form state
     const [formData, setFormData] = useState({
@@ -21,7 +41,10 @@ const Inventory = () => {
         price: '',
         stock_status: 'in_stock',
         clothing_type: 'upper',
-        image_url: ''
+        stock_status: 'in_stock',
+        clothing_type: 'upper',
+        image_url: '',
+        additional_images_text: '' // For form input (one per line)
     });
 
     // Fetch products on mount
@@ -80,7 +103,10 @@ const Inventory = () => {
             price: '',
             stock_status: 'in_stock',
             clothing_type: 'upper',
-            image_url: ''
+            stock_status: 'in_stock',
+            clothing_type: 'upper',
+            image_url: '',
+            additional_images_text: ''
         });
         setShowModal(true);
     };
@@ -93,7 +119,10 @@ const Inventory = () => {
             price: product.price.toString(),
             stock_status: product.stock_status,
             clothing_type: product.clothing_type || 'upper',
-            image_url: product.image_url || ''
+            stock_status: product.stock_status,
+            clothing_type: product.clothing_type || 'upper',
+            image_url: product.image_url || '',
+            additional_images_text: product.additional_images ? product.additional_images.join('\n') : ''
         });
         setShowModal(true);
     };
@@ -107,7 +136,9 @@ const Inventory = () => {
             const productData = {
                 ...formData,
                 price: parseFloat(formData.price),
-                outlet_id: outlet?.id || 1
+                price: parseFloat(formData.price),
+                outlet_id: outlet?.id || 1,
+                additional_images: formData.additional_images_text.split('\n').map(s => s.trim()).filter(Boolean)
             };
 
             if (editingProduct) {
@@ -176,10 +207,10 @@ const Inventory = () => {
             {/* Product Limit Banner */}
             {productLimit.limit !== null && (
                 <div className={`mb-6 p-4 rounded-sm border-2 flex items-center justify-between ${isAtLimit
-                        ? 'bg-red-50 border-red-300 text-red-700'
-                        : products.length >= productLimit.limit * 0.8
-                            ? 'bg-amber-50 border-amber-300 text-amber-700'
-                            : 'bg-blue-50 border-blue-300 text-blue-700'
+                    ? 'bg-red-50 border-red-300 text-red-700'
+                    : products.length >= productLimit.limit * 0.8
+                        ? 'bg-amber-50 border-amber-300 text-amber-700'
+                        : 'bg-blue-50 border-blue-300 text-blue-700'
                     }`}>
                     <div className="flex items-center gap-3">
                         <span className="material-symbols-outlined">
@@ -214,13 +245,41 @@ const Inventory = () => {
                     onClick={openAddModal}
                     disabled={isAtLimit}
                     className={`flex items-center gap-2 px-6 py-3 border-2 border-slate-900 dark:border-white rounded-sm font-bold uppercase text-xs transition-all ${isAtLimit
-                            ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                            : 'bg-primary text-white hover:translate-y-1 shadow-3d hover:shadow-3d-hover'
+                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                        : 'bg-primary text-white hover:translate-y-1 shadow-3d hover:shadow-3d-hover'
                         }`}
                 >
                     <span className="material-symbols-outlined text-[20px]">{isAtLimit ? 'block' : 'add'}</span>
                     {isAtLimit ? 'Limit Reached' : 'Add New Item'}
                 </button>
+            </div>
+
+            {/* Search and Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="relative flex-1">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                    <input
+                        type="text"
+                        placeholder="Search products..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 rounded-sm border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary outline-none transition-all text-sm font-medium"
+                    />
+                </div>
+                <div className="relative w-full sm:w-64">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">filter_list</span>
+                    <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 rounded-sm border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary outline-none transition-all text-sm font-medium appearance-none cursor-pointer"
+                    >
+                        <option value="All">All Categories</option>
+                        {availableCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                    </select>
+                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                </div>
             </div>
 
             {error && (
@@ -252,25 +311,28 @@ const Inventory = () => {
                                         <p className="mt-2">Loading products...</p>
                                     </td>
                                 </tr>
-                            ) : products.length === 0 ? (
+                            ) : filteredProducts.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="px-6 py-12 text-center text-body">
-                                        <span className="material-symbols-outlined text-4xl text-gray-300">inventory_2</span>
-                                        <p className="mt-2">No products yet. Add your first item!</p>
+                                        <span className="material-symbols-outlined text-4xl text-gray-300">search_off</span>
+                                        <p className="mt-2">No products found matching your search.</p>
                                     </td>
                                 </tr>
                             ) : (
-                                products.map(product => (
+                                filteredProducts.map(product => (
                                     <tr key={product.id} className="hover:bg-page/50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="size-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 overflow-hidden">
-                                                    {product.image_url ? (
-                                                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <span className="material-symbols-outlined text-[20px]">checkroom</span>
-                                                    )}
-                                                </div>
+                                                <ProductImagePreview
+                                                    mainImage={product.image_url}
+                                                    additionalImages={product.additional_images || []}
+                                                    alt={product.name}
+                                                    onClick={() => setPreviewImage({
+                                                        src: product.image_url,
+                                                        alt: product.name,
+                                                        allImages: [product.image_url, ...(product.additional_images || [])].filter(Boolean)
+                                                    })}
+                                                />
                                                 <span className="font-medium text-heading">{product.name}</span>
                                             </div>
                                         </td>
@@ -309,7 +371,7 @@ const Inventory = () => {
                 {/* Footer */}
                 <div className="bg-white px-6 py-4 border-t border-border-gray flex items-center justify-between">
                     <span className="text-sm text-body">
-                        {products.length} {products.length === 1 ? 'item' : 'items'} total
+                        Showing {filteredProducts.length} of {products.length} items
                     </span>
                     <button
                         onClick={fetchProducts}
@@ -349,20 +411,19 @@ const Inventory = () => {
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Category</label>
-                                    <select
+                                    <input
+                                        list="category-options"
                                         name="category"
                                         value={formData.category}
                                         onChange={handleChange}
+                                        placeholder="Select or type new..."
                                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white"
-                                    >
-                                        <option value="T-Shirts">T-Shirts</option>
-                                        <option value="Shirts">Shirts</option>
-                                        <option value="Pants">Pants</option>
-                                        <option value="Jeans">Jeans</option>
-                                        <option value="Dresses">Dresses</option>
-                                        <option value="Outerwear">Outerwear</option>
-                                        <option value="Accessories">Accessories</option>
-                                    </select>
+                                    />
+                                    <datalist id="category-options">
+                                        {availableCategories.map(cat => (
+                                            <option key={cat} value={cat} />
+                                        ))}
+                                    </datalist>
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Price ($)</label>
@@ -418,6 +479,17 @@ const Inventory = () => {
                                     placeholder="https://example.com/image.jpg"
                                 />
                             </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Additional Images (One URL per line)</label>
+                                <textarea
+                                    name="additional_images_text"
+                                    value={formData.additional_images_text}
+                                    onChange={handleChange}
+                                    rows="3"
+                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white placeholder:text-slate-400"
+                                    placeholder="https://example.com/side.jpg&#10;https://example.com/back.jpg"
+                                />
+                            </div>
                             <div className="flex gap-4 pt-4">
                                 <button
                                     type="button"
@@ -436,6 +508,135 @@ const Inventory = () => {
                             </div>
                         </form>
                     </div>
+                </div>
+
+            )}
+
+            {/* Image Preview Modal */}
+            {
+                previewImage && (
+                    <div
+                        className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[110] p-4 cursor-zoom-out"
+                        onClick={() => setPreviewImage(null)}
+                    >
+                        <div
+                            className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center justify-center animate-in fade-in zoom-in duration-200"
+                            onClick={e => e.stopPropagation()} // Prevent close on content click
+                        >
+                            <button
+                                onClick={() => setPreviewImage(null)}
+                                className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-all backdrop-blur-sm"
+                            >
+                                <span className="material-symbols-outlined text-2xl">close</span>
+                            </button>
+
+                            <ImageGallery
+                                images={previewImage.allImages}
+                                alt={previewImage.alt}
+                            />
+
+                            <p className="mt-4 text-white font-display font-bold text-xl tracking-wide">{previewImage.alt}</p>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
+    );
+};
+
+// Helper component for image cycling
+const ProductImagePreview = ({ mainImage, additionalImages, alt, onClick }) => {
+    const [currentSrc, setCurrentSrc] = useState(mainImage);
+    const images = [mainImage, ...additionalImages].filter(Boolean);
+    const [isHovering, setIsHovering] = useState(false);
+
+    useEffect(() => {
+        let interval;
+        if (isHovering && images.length > 1) {
+            let i = 0;
+            interval = setInterval(() => {
+                i = (i + 1) % images.length;
+                setCurrentSrc(images[i]);
+            }, 800);
+        } else {
+            setCurrentSrc(mainImage);
+        }
+        return () => clearInterval(interval);
+    }, [isHovering, mainImage, images.length]);
+
+    return (
+        <div
+            className="size-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 overflow-hidden relative group cursor-zoom-in hover:ring-2 hover:ring-primary hover:ring-offset-2 transition-all"
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
+            onClick={onClick}
+        >
+            {currentSrc ? (
+                <img src={currentSrc} alt={alt} className="w-full h-full object-cover transition-opacity duration-300" />
+            ) : (
+                <span className="material-symbols-outlined text-[20px]">checkroom</span>
+            )}
+
+            {/* Indicator dots if multiple */}
+            {images.length > 1 && (
+                <div className="absolute bottom-0 inset-x-0 h-1 bg-black/20 flex">
+                    {images.map((_, idx) => (
+                        <div key={idx} className={`flex-1 ${currentSrc === images[idx] ? 'bg-primary' : 'bg-transparent'}`} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Full screen gallery with navigation
+const ImageGallery = ({ images, alt }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    const next = () => setCurrentIndex((prev) => (prev + 1) % images.length);
+    const prev = () => setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+
+    if (!images || images.length === 0) return null;
+
+    return (
+        <div className="relative w-full h-full flex flex-col items-center">
+            <div className="relative w-full max-h-[70vh] flex items-center justify-center">
+                <img
+                    src={images[currentIndex]}
+                    alt={`${alt} - View ${currentIndex + 1}`}
+                    className="max-h-[70vh] max-w-full object-contain rounded-sm shadow-2xl"
+                />
+
+                {images.length > 1 && (
+                    <>
+                        <button
+                            onClick={prev}
+                            className="absolute left-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm transition-all"
+                        >
+                            <span className="material-symbols-outlined text-3xl">chevron_left</span>
+                        </button>
+                        <button
+                            onClick={next}
+                            className="absolute right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm transition-all"
+                        >
+                            <span className="material-symbols-outlined text-3xl">chevron_right</span>
+                        </button>
+                    </>
+                )}
+            </div>
+
+            {images.length > 1 && (
+                <div className="flex gap-2 mt-6 overflow-x-auto max-w-full p-2">
+                    {images.map((img, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => setCurrentIndex(idx)}
+                            className={`size-16 rounded-md overflow-hidden border-2 transition-all ${idx === currentIndex ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-slate-900' : 'border-transparent opacity-50 hover:opacity-100'
+                                }`}
+                        >
+                            <img src={img} alt="" className="w-full h-full object-cover" />
+                        </button>
+                    ))}
                 </div>
             )}
         </div>

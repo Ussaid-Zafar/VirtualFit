@@ -79,6 +79,7 @@ def create_product():
                     'plan': subscription.plan_name
                 }), 403
     
+    import json
     # Handle file upload if present
     image_url = None
     if 'image' in request.files:
@@ -88,7 +89,15 @@ def create_product():
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             image_url = f"/uploads/{filename}"
-    
+            
+    # Handle additional images (JSON list of URLs expected)
+    additional_images = data.get('additional_images', [])
+    if isinstance(additional_images, str):
+        try:
+             additional_images = json.loads(additional_images)
+        except:
+             additional_images = []
+             
     # Create product
     product = Product(
         outlet_id=outlet_id,
@@ -97,7 +106,8 @@ def create_product():
         price=float(data['price']),
         stock_status=data.get('stock_status', 'in_stock'),
         clothing_type=data.get('clothing_type', 'upper'),
-        image_url=image_url or data.get('image_url')
+        image_url=image_url or data.get('image_url'),
+        additional_images=json.dumps(additional_images)
     )
     
     db.session.add(product)
@@ -133,6 +143,20 @@ def update_product(product_id):
         product.clothing_type = data['clothing_type']
     if 'image_url' in data:
         product.image_url = data['image_url']
+        
+    if 'additional_images' in data:
+        import json
+        imgs = data['additional_images']
+        if isinstance(imgs, str):
+             try:
+                 # Check if it's already a JSON string or just a raw string
+                 json.loads(imgs) 
+                 product.additional_images = imgs
+             except:
+                 # It was a raw string or invalid json
+                 product.additional_images = json.dumps([])
+        elif isinstance(imgs, list):
+             product.additional_images = json.dumps(imgs)
     
     # Handle new image upload
     if 'image' in request.files:

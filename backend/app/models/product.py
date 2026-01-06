@@ -20,6 +20,7 @@ class Product(db.Model):
     
     # Images
     image_url = db.Column(db.String(255))
+    additional_images = db.Column(db.Text) # JSON list of strings
     
     # Segmentation data (for future use)
     segmentation_mask_path = db.Column(db.String(255))
@@ -30,6 +31,14 @@ class Product(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def to_dict(self):
+        import json
+        add_imgs = []
+        if self.additional_images:
+            try:
+                add_imgs = json.loads(self.additional_images)
+            except:
+                add_imgs = []
+
         return {
             'id': self.id,
             'outlet_id': self.outlet_id,
@@ -39,6 +48,7 @@ class Product(db.Model):
             'stock_status': self.stock_status,
             'clothing_type': self.clothing_type,
             'image_url': self.image_url,
+            'additional_images': add_imgs,
             'segmentation_ready': self.segmentation_ready,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

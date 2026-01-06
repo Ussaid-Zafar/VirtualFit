@@ -104,9 +104,9 @@ const Login = () => {
                                     Remember me
                                 </label>
                             </div>
-                            <a className="text-xs font-bold text-primary hover:underline uppercase" href="#">
+                            <Link className="text-xs font-bold text-primary hover:underline uppercase" to="/forgot-password">
                                 Forgot password?
-                            </a>
+                            </Link>
                         </div>
                         <button
                             className="inline-flex h-12 w-full items-center justify-center rounded-sm bg-primary px-8 py-2 text-base font-bold text-white border-2 border-slate-900 dark:border-white shadow-3d hover:shadow-3d-hover hover:translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
