@@ -22,6 +22,16 @@ const DashboardLayout = () => {
         navigate('/login');
     };
 
+    // Protect Dashboard Routes
+    React.useEffect(() => {
+        const currentOutlet = authAPI.getOutlet();
+        const token = localStorage.getItem('token');
+
+        if (!currentOutlet || !token) {
+            navigate('/login');
+        }
+    }, [navigate]);
+
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
         { name: 'Inventory', href: '/dashboard/inventory', icon: 'checkroom' },

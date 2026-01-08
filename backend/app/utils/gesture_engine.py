@@ -26,18 +26,26 @@ class GestureEngine:
             if self.is_running:
                 return True
             
-            self.cap = cv2.VideoCapture(0)
-            if not self.cap.isOpened():
+            try:
+                self.cap = cv2.VideoCapture(0)
+                if not self.cap.isOpened():
+                    print("Camera failed to open via cv2")
+                    return False
+                
+                self.cap.set(3, self.wCam)
+                self.cap.set(4, self.hCam)
+                
+                self.detector = HandDetector(detectionCon=0.7, trackCon=0.7)
+                self.is_running = True
+                self.thread = threading.Thread(target=self._update, daemon=True)
+                self.thread.start()
+                return True
+            except Exception as e:
+                print(f"Failed to start GestureEngine: {e}")
+                if self.cap:
+                    self.cap.release()
+                self.is_running = False
                 return False
-            
-            self.cap.set(3, self.wCam)
-            self.cap.set(4, self.hCam)
-            
-            self.detector = HandDetector(detectionCon=0.7, trackCon=0.7)
-            self.is_running = True
-            self.thread = threading.Thread(target=self._update, daemon=True)
-            self.thread.start()
-            return True
 
     def stop(self):
         with self.lock:

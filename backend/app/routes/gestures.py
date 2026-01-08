@@ -7,13 +7,19 @@ gestures_bp = Blueprint('gestures', __name__)
 
 @gestures_bp.route('/start', methods=['POST'])
 def start_gestures():
-    success = engine.start()
-    if success:
-        return jsonify({'success': True, 'message': 'Gesture control started'})
-    else:
+    try:
+        success = engine.start()
+        if success:
+            return jsonify({'success': True, 'message': 'Gesture control started'})
+        else:
+            return jsonify({
+                'success': False, 
+                'error': 'Could not start camera. Ensure it is not being used by the browser or another app.'
+            }), 500
+    except Exception as e:
         return jsonify({
-            'success': False, 
-            'error': 'Could not start camera. Ensure it is not being used by the browser.'
+            'success': False,
+            'error': f'Engine error: {str(e)}'
         }), 500
 
 @gestures_bp.route('/stop', methods=['POST'])

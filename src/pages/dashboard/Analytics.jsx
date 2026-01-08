@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { productsAPI, authAPI } from '../../services/api';
+import { productsAPI, authAPI, sessionsAPI } from '../../services/api';
 
 const Analytics = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedPeriod, setSelectedPeriod] = useState('7');
+    const [sessionAnalytics, setSessionAnalytics] = useState(null);
+    const [sessionsLoading, setSessionsLoading] = useState(true);
 
     const outlet = authAPI.getOutlet();
 
     useEffect(() => {
         fetchProducts();
-    }, []);
+        fetchSessionAnalytics();
+    }, [selectedPeriod]);
 
     const fetchProducts = async () => {
         try {
@@ -23,6 +26,20 @@ const Analytics = () => {
             console.error('Failed to load products:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchSessionAnalytics = async () => {
+        try {
+            setSessionsLoading(true);
+            const response = await sessionsAPI.getAnalytics(outlet?.id, selectedPeriod);
+            if (response.success) {
+                setSessionAnalytics(response.data);
+            }
+        } catch (err) {
+            console.error('Failed to load session analytics:', err);
+        } finally {
+            setSessionsLoading(false);
         }
     };
 
@@ -122,6 +139,53 @@ const Analytics = () => {
                     </div>
                     <div className="size-10 rounded-lg bg-teal-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform -rotate-6 shadow-lg">
                         <span className="material-symbols-outlined">inventory_2</span>
+                    </div>
+                </div>
+            </div>
+            {/* Session Analytics Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Sessions</p>
+                        <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">
+                            {sessionsLoading ? '...' : (sessionAnalytics?.total_sessions || 0)}
+                        </p>
+                    </div>
+                    <div className="size-10 rounded-lg bg-indigo-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform rotate-3 shadow-lg">
+                        <span className="material-symbols-outlined">person_play</span>
+                    </div>
+                </div>
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Completion Rate</p>
+                        <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">
+                            {sessionsLoading ? '...' : `${sessionAnalytics?.completion_rate || 0}%`}
+                        </p>
+                    </div>
+                    <div className="size-10 rounded-lg bg-emerald-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform -rotate-3 shadow-lg">
+                        <span className="material-symbols-outlined">check_circle</span>
+                    </div>
+                </div>
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Avg Duration</p>
+                        <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">
+                            {sessionsLoading ? '...' : `${Math.round((sessionAnalytics?.avg_duration_seconds || 0) / 60)}m`}
+                        </p>
+                    </div>
+                    <div className="size-10 rounded-lg bg-amber-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform rotate-6 shadow-lg">
+                        <span className="material-symbols-outlined">timer</span>
+                    </div>
+                </div>
+                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Products Tried</p>
+                        <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">
+                            {sessionsLoading ? '...' : (sessionAnalytics?.total_products_tried || 0)}
+                        </p>
+                    </div>
+                    <div className="size-10 rounded-lg bg-rose-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform -rotate-6 shadow-lg">
+                        <span className="material-symbols-outlined">styler</span>
                     </div>
                 </div>
             </div>

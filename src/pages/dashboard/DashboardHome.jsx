@@ -98,11 +98,13 @@ const DashboardHome = () => {
                 }
             } catch (err) {
                 console.error('Launch error:', err);
-                setLaunchStatus('Error: Backend not responding.');
+                const errorMessage = err.message || 'Error: Backend not responding.';
+                setLaunchStatus(errorMessage);
+                // Keep the error visible longer
                 setTimeout(() => {
                     setIsLaunching(false);
                     setLaunchStatus('');
-                }, 3000);
+                }, 5000);
             }
         }
     };
