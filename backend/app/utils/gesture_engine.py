@@ -5,6 +5,9 @@ import time
 import pyautogui
 import threading
 
+# Disable pyautogui failsafe (moving mouse to corner won't stop script)
+pyautogui.FAILSAFE = False
+
 class GestureEngine:
     def __init__(self):
         self.cap = None
@@ -32,10 +35,11 @@ class GestureEngine:
                     print("Camera failed to open via cv2")
                     return False
                 
-                self.cap.set(3, self.wCam)
-                self.cap.set(4, self.hCam)
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.wCam)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.hCam)
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffer delay
                 
-                self.detector = HandDetector(detectionCon=0.7, trackCon=0.7)
+                self.detector = HandDetector(detectionCon=0.5, trackCon=0.5)
                 self.is_running = True
                 self.thread = threading.Thread(target=self._update, daemon=True)
                 self.thread.start()
@@ -63,8 +67,8 @@ class GestureEngine:
             img = cv2.flip(img, 1)
             
             try:
-                # Run hand tracking
-                lmList = self.detector.getPosition(img, indexes=range(21))
+                # Run hand tracking - enable drawing to see landmarks on stream
+                lmList = self.detector.getPosition(img, indexes=range(21), draw=True)
                 
                 if len(lmList) != 0:
                     x1, y1 = lmList[8]  # Index finger tip
@@ -96,8 +100,8 @@ class GestureEngine:
             except Exception as e:
                 print(f"Engine update error: {e}")
 
-            # Encode frame for streaming
-            ret, buffer = cv2.imencode('.jpg', img)
+            # Encode frame for streaming (lower quality = faster)
+            ret, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 70])
             if ret:
                 with self.lock:
                     self.current_frame = buffer.tobytes()

@@ -2,7 +2,7 @@ import cv2
 import mediapipe as mp
 
 class HandDetector:
-    def __init__(self, mode=False, maxHands=2, modelComplexity=1, detectionCon=0.5, trackCon=0.5):
+    def __init__(self, mode=False, maxHands=1, modelComplexity=0, detectionCon=0.5, trackCon=0.5):
         self.mode = mode
         self.maxHands = maxHands
         self.modelComplexity = modelComplexity
@@ -19,7 +19,7 @@ class HandDetector:
         )
         self.mpDraw = mp.solutions.drawing_utils
 
-    def getPosition(self, img, indexes=range(21), hand_no=0, draw=True):
+    def getPosition(self, img, indexes=range(21), hand_no=0, draw=False):
         lst = []
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = self.hands.process(imgRGB)

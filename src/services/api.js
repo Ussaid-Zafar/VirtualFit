@@ -66,6 +66,20 @@ export const authAPI = {
     getOutlet: () => {
         const outlet = localStorage.getItem('outlet');
         return outlet ? JSON.parse(outlet) : null;
+    },
+
+    forgotPassword: async (email) => {
+        return apiRequest('/auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        });
+    },
+
+    resetPassword: async (token, password) => {
+        return apiRequest('/auth/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({ token, password }),
+        });
     }
 };
 

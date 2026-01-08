@@ -66,14 +66,14 @@ const Sessions = () => {
                     <p className="text-body mt-1">History of all virtual try-on activities in your store.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-white border border-border-gray rounded-lg p-1">
+                    <div className="flex items-center bg-white dark:bg-slate-800 border-2 border-slate-900 dark:border-white rounded-sm p-1 shadow-3d-small">
                         {[7, 30, 90].map(days => (
                             <button
                                 key={days}
                                 onClick={() => setSelectedPeriod(days)}
-                                className={`px-3 py-1 text-sm font-medium rounded transition-colors ${selectedPeriod === days ? 'bg-page text-heading shadow-sm' : 'text-body hover:text-heading'}`}
+                                className={`px-4 py-1.5 text-xs font-bold uppercase rounded-sm transition-all ${selectedPeriod === days ? 'bg-primary text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                             >
-                                {days}d
+                                {days} Days
                             </button>
                         ))}
                     </div>
@@ -88,22 +88,50 @@ const Sessions = () => {
 
             {/* Analytics Cards */}
             {analytics && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-white p-5 rounded-xl border border-border-gray shadow-sm">
-                        <p className="text-sm text-body">Total Sessions</p>
-                        <p className="text-2xl font-bold text-heading">{analytics.total_sessions}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Sessions</p>
+                            <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">
+                                {loading ? '...' : (analytics?.total_sessions || 0)}
+                            </p>
+                        </div>
+                        <div className="size-10 rounded-lg bg-indigo-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform rotate-3 shadow-lg">
+                            <span className="material-symbols-outlined">person_play</span>
+                        </div>
                     </div>
-                    <div className="bg-white p-5 rounded-xl border border-border-gray shadow-sm">
-                        <p className="text-sm text-body">Products Tried</p>
-                        <p className="text-2xl font-bold text-heading">{analytics.total_products_tried}</p>
+                    <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Completion Rate</p>
+                            <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">
+                                {loading ? '...' : `${analytics?.completion_rate || 0}%`}
+                            </p>
+                        </div>
+                        <div className="size-10 rounded-lg bg-emerald-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform -rotate-3 shadow-lg">
+                            <span className="material-symbols-outlined">check_circle</span>
+                        </div>
                     </div>
-                    <div className="bg-white p-5 rounded-xl border border-border-gray shadow-sm">
-                        <p className="text-sm text-body">Avg Duration</p>
-                        <p className="text-2xl font-bold text-heading">{formatDuration(analytics.avg_duration_seconds)}</p>
+                    <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Avg Duration</p>
+                            <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">
+                                {loading ? '...' : `${Math.round((analytics?.avg_duration_seconds || 0) / 60)}m`}
+                            </p>
+                        </div>
+                        <div className="size-10 rounded-lg bg-amber-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform rotate-6 shadow-lg">
+                            <span className="material-symbols-outlined">timer</span>
+                        </div>
                     </div>
-                    <div className="bg-white p-5 rounded-xl border border-border-gray shadow-sm">
-                        <p className="text-sm text-body">Completion Rate</p>
-                        <p className="text-2xl font-bold text-heading">{analytics.completion_rate}%</p>
+                    <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-sm border-2 border-slate-900 dark:border-white shadow-3d flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Products Tried</p>
+                            <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">
+                                {loading ? '...' : (analytics?.total_products_tried || 0)}
+                            </p>
+                        </div>
+                        <div className="size-10 rounded-lg bg-rose-500 border-2 border-slate-900 dark:border-white text-white flex items-center justify-center transform -rotate-6 shadow-lg">
+                            <span className="material-symbols-outlined">styler</span>
+                        </div>
                     </div>
                 </div>
             )}
@@ -175,8 +203,8 @@ const Sessions = () => {
                                             <td className="px-6 py-4 text-sm text-body">{session.kiosk_id || 'Web'}</td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${session.status === 'completed' ? 'text-green-600 bg-green-50' :
-                                                        session.status === 'active' ? 'text-blue-600 bg-blue-50' :
-                                                            'text-orange-600 bg-orange-50'
+                                                    session.status === 'active' ? 'text-blue-600 bg-blue-50' :
+                                                        'text-orange-600 bg-orange-50'
                                                     }`}>
                                                     {session.status === 'completed' ? 'Completed' :
                                                         session.status === 'active' ? 'Active' : 'Abandoned'}

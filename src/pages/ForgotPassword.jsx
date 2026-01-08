@@ -1,26 +1,30 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { authAPI } from '../services/api';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [devResetUrl, setDevResetUrl] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setMessage('');
+        setDevResetUrl('');
         setLoading(true);
 
         try {
-            // Simulator API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            // In a real app, this would call authAPI.forgotPassword(email)
-
-            setMessage('If an account exists with this email, you will receive a password reset link shortly.');
+            const response = await authAPI.forgotPassword(email);
+            setMessage(response.message);
+            // For development: show the reset URL
+            if (response.dev_reset_url) {
+                setDevResetUrl(response.dev_reset_url);
+            }
         } catch (err) {
-            setError('An error occurred. Please try again.');
+            setError(err.message || 'An error occurred. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -46,6 +50,20 @@ const ForgotPassword = () => {
                     {message && (
                         <div className="mb-6 p-4 rounded-sm bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-sm font-medium">
                             {message}
+                        </div>
+                    )}
+
+                    {devResetUrl && (
+                        <div className="mb-6 p-4 rounded-sm bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-sm">
+                            <p className="font-bold mb-2">🔧 Development Mode - Reset Link:</p>
+                            <a
+                                href={devResetUrl}
+                                className="text-primary underline break-all"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                {devResetUrl}
+                            </a>
                         </div>
                     )}
 

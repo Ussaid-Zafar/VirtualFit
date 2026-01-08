@@ -411,19 +411,34 @@ const Inventory = () => {
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Category</label>
-                                    <input
-                                        list="category-options"
+                                    <select
                                         name="category"
-                                        value={formData.category}
-                                        onChange={handleChange}
-                                        placeholder="Select or type new..."
+                                        value={availableCategories.includes(formData.category) ? formData.category : '__custom__'}
+                                        onChange={(e) => {
+                                            if (e.target.value === '__custom__') {
+                                                setFormData(prev => ({ ...prev, category: '' }));
+                                            } else {
+                                                setFormData(prev => ({ ...prev, category: e.target.value }));
+                                            }
+                                        }}
                                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white"
-                                    />
-                                    <datalist id="category-options">
+                                    >
                                         {availableCategories.map(cat => (
-                                            <option key={cat} value={cat} />
+                                            <option key={cat} value={cat}>{cat}</option>
                                         ))}
-                                    </datalist>
+                                        <option value="__custom__">+ Add Custom Category</option>
+                                    </select>
+                                    {(!availableCategories.includes(formData.category) || formData.category === '') && (
+                                        <input
+                                            type="text"
+                                            name="category"
+                                            value={formData.category}
+                                            onChange={handleChange}
+                                            placeholder="Enter custom category name..."
+                                            className="w-full mt-2 px-4 py-3 bg-white dark:bg-slate-800 border-2 border-primary rounded-sm focus:border-primary transition-all outline-none font-medium text-sm text-slate-900 dark:text-white"
+                                            autoFocus
+                                        />
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Price ($)</label>
