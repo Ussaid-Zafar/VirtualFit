@@ -288,4 +288,39 @@ export const sessionsAPI = {
     }
 };
 
-export default { authAPI, outletsAPI, productsAPI, subscriptionsAPI, sessionsAPI };
+// Try-On API
+export const tryonAPI = {
+    init: async (token = '') => {
+        return apiRequest('/tryon/init', {
+            method: 'POST',
+            body: JSON.stringify({ token }),
+        });
+    },
+    capture: async () => {
+        return apiRequest('/tryon/capture', {
+            method: 'POST',
+        });
+    },
+    analyze: async (step = 'FRONT', clothingTypes = {}) => {
+        return apiRequest('/tryon/analyze', {
+            method: 'POST',
+            body: JSON.stringify({ 
+                step,
+                selected_upper: !!clothingTypes.upper,
+                selected_lower: !!clothingTypes.lower
+            })
+        });
+    },
+    generate: async (personImage, garmentImage, token = '') => {
+        return apiRequest('/tryon/generate', {
+            method: 'POST',
+            body: JSON.stringify({
+                person_image: personImage,
+                garment_image: garmentImage,
+                token
+            }),
+        });
+    }
+};
+
+export default { authAPI, outletsAPI, productsAPI, subscriptionsAPI, sessionsAPI, tryonAPI };

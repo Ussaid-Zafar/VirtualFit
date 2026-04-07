@@ -16,6 +16,7 @@ class GestureEngine:
         self.thread = None
         self.lock = threading.Lock()
         self.current_frame = None
+        self.last_raw_frame = None
         
         # Performance settings
         self.wCam, self.hCam = 640, 480
@@ -105,10 +106,15 @@ class GestureEngine:
             if ret:
                 with self.lock:
                     self.current_frame = buffer.tobytes()
+                    self.last_raw_frame = img.copy()
 
     def get_frame(self):
         with self.lock:
             return self.current_frame
+
+    def get_frame_raw(self):
+        with self.lock:
+            return self.last_raw_frame
 
 # Global instance for shared use across requests
 engine = GestureEngine()

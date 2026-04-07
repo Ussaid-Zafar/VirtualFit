@@ -21,6 +21,8 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
+    app.config['HF_TOKEN'] = os.getenv('HF_TOKEN', '')
+    app.config['GROQ_API_KEY'] = os.getenv('GROQ_API_KEY', '')
     
     # File upload config
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
@@ -50,6 +52,7 @@ def create_app():
     from app.routes.subscriptions import subscriptions_bp
     from app.routes.sessions import sessions_bp
     from app.routes.gestures import gestures_bp
+    from app.routes.tryon import tryon_bp
     
     app.register_blueprint(products_bp, url_prefix='/api/products')
     app.register_blueprint(outlets_bp, url_prefix='/api/outlets')
@@ -57,6 +60,7 @@ def create_app():
     app.register_blueprint(subscriptions_bp, url_prefix='/api/subscriptions')
     app.register_blueprint(sessions_bp, url_prefix='/api/sessions')
     app.register_blueprint(gestures_bp, url_prefix='/api/gestures')
+    app.register_blueprint(tryon_bp, url_prefix='/api/tryon')
 
 
     

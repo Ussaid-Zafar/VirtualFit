@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { productsAPI, gesturesAPI } from '../services/api';
+import { productsAPI, gesturesAPI, tryonAPI } from '../services/api';
 
 const TryOn = () => {
     const [selectedUpper, setSelectedUpper] = useState(null); // Shirt/Top
@@ -30,6 +30,28 @@ const TryOn = () => {
     const [gestureMode, setGestureMode] = useState(true);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [isClicked, setIsClicked] = useState(false);
+
+    // Try-On Integration States
+    const [personImages, setPersonImages] = useState({
+        front: null,
+        back: null,
+        left: null,
+        right: null
+    });
+    const [captureStep, setCaptureStep] = useState('OFF'); // OFF, FRONT, BACK, LEFT, RIGHT, COMPLETED
+    const [isManualMode, setIsManualMode] = useState(false);
+    const [analysis, setAnalysis] = useState({ status: 'waiting', feedback: 'Initializing...' });
+    const [countdown, setCountdown] = useState(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [tryOnResult, setTryOnResult] = useState(null); 
+    const [error, setError] = useState(null);
+    const [lastSpoken, setLastSpoken] = useState('');
+    const [narratorMessage, setNarratorMessage] = useState('');
+    const [isAutomatedFlow, setIsAutomatedFlow] = useState(false);
+    const [longWaitMessage, setLongWaitMessage] = useState(false);
+    const [generationTime, setGenerationTime] = useState(0);
+    const [isProcessingCapture, setIsProcessingCapture] = useState(false);
+    const countdownTimerRef = useRef(null);
 
 
 
@@ -105,43 +127,192 @@ const TryOn = () => {
         };
     }, []);
 
-    // Track mouse position for Virtual Cursor
+    // Polling Analysis for Guided Capture (Only if NOT in automated flow / manual)
     useEffect(() => {
-        const handleMouseMove = (e) => {
-            if (gestureMode) {
-                setMousePos({ x: e.clientX, y: e.clientY });
+        let isActive = true;
+        
+        const poll = async () => {
+            if (!isActive || captureStep === 'OFF' || captureStep === 'COMPLETED' || isManualMode || isAutomatedFlow || personImages[captureStep.toLowerCase()]) return;
+            
+            try {
+                const res = await tryonAPI.analyze(captureStep, { 
+                    upper: !!selectedUpper, 
+                    lower: !!selectedLower 
+                });
+                
+                if (!isActive) return;
+
+                if (res.success) {
+                    setAnalysis(res.analysis);
+                    
+                    const speechText = res.analysis.narrator || res.analysis.feedback;
+                    if (speechText && speechText !== lastSpoken) {
+                        speakText(speechText);
+                        setLastSpoken(speechText);
+                    }
+
+                    if (res.analysis.status === 'ready' && countdown === null) {
+                        startCaptureCountdown();
+                    } else if (res.analysis.status !== 'ready') {
+                        setCountdown(null);
+                    }
+                }
+            } catch (err) {
+                console.error('Analysis failed:', err);
+            } finally {
+                if (isActive) setTimeout(poll, 800); // 800ms gap between calls
             }
         };
 
-        const handleMouseDown = () => {
-            if (gestureMode) setIsClicked(true);
-        };
-
-        const handleMouseUp = () => {
-            if (gestureMode) setIsClicked(false);
-        };
-
-        if (gestureMode) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mousedown', handleMouseDown);
-            window.addEventListener('mouseup', handleMouseUp);
-            document.body.style.cursor = 'none';
-        } else {
-            document.body.style.cursor = 'default';
+        if (captureStep !== 'OFF' && captureStep !== 'COMPLETED' && !isManualMode && !isAutomatedFlow) {
+            poll();
         }
 
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mousedown', handleMouseDown);
-            window.removeEventListener('mouseup', handleMouseUp);
-            document.body.style.cursor = 'default';
-        };
-    }, [gestureMode]);
+        return () => { isActive = false; };
+    }, [captureStep, isManualMode, isAutomatedFlow]);
 
-    // Handle "Start Capturing Body" button click - NO MORE CAMERA LOGIC, JUST ANIMATION
-    const handleStartCapture = () => {
-        setIsScanning(true);
-        simulateBodyScan();
+    // Generation Timer Effect
+    useEffect(() => {
+        let timer;
+        if (isGenerating) {
+            setGenerationTime(0);
+            timer = setInterval(() => {
+                setGenerationTime(prev => prev + 1);
+            }, 1000);
+        } else {
+            setGenerationTime(0);
+            clearInterval(timer);
+        }
+        return () => clearInterval(timer);
+    }, [isGenerating]);
+
+
+    // Monitoring Long Wait Threshold
+    useEffect(() => {
+        let timer;
+        if (isGenerating) {
+            timer = setTimeout(() => {
+                setLongWaitMessage(true);
+            }, 25000); // 25 seconds before showing warning
+        } else {
+            setLongWaitMessage(false);
+        }
+        return () => clearTimeout(timer);
+    }, [isGenerating]);
+
+    const speakText = (text) => {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel(); // Stop current speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        window.speechSynthesis.speak(utterance);
+    };
+
+    const startCaptureCountdown = (seconds = 7, targetStep = null) => {
+        // Clear any existing timer to prevent "rushing" or multiple captures
+        if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+        }
+        
+        setCountdown(seconds);
+        const stepToCapture = targetStep || captureStep;
+        
+        countdownTimerRef.current = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(countdownTimerRef.current);
+                    countdownTimerRef.current = null;
+                    performCapture(stepToCapture);
+                    return null;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    };
+
+    const performCapture = async (step = null) => {
+        if (isProcessingCapture) return;
+        
+        const targetStep = step || captureStep;
+        if (!targetStep || targetStep === 'OFF' || targetStep === 'COMPLETED') return;
+
+        try {
+            setIsProcessingCapture(true);
+            const res = await tryonAPI.capture();
+            if (res.success) {
+                const stepLower = targetStep.toLowerCase();
+                setPersonImages(prev => ({ ...prev, [stepLower]: res.image_b64 }));
+                
+                const steps = ['FRONT', 'LEFT', 'BACK', 'RIGHT'];
+                const currentIndex = steps.indexOf(targetStep);
+                const nextStep = steps[currentIndex + 1];
+                
+                // We no longer auto-advance. We stay on the current step but mark as captured.
+                const transitionMsg = `Capture complete for your ${targetStep} view. ${nextStep ? `You can now proceed to ${nextStep} or recapture this angle.` : "All angles ready!"}`;
+                speakText(transitionMsg);
+                setNarratorMessage(transitionMsg);
+                setIsAutomatedFlow(false); 
+                
+                // If it was the final step, we can mark as "COMPLETED" globally if we want, 
+                // but better to just keep the dashboard active.
+                if (targetStep === 'FRONT' && (selectedUpper || selectedLower)) {
+                    // Auto-trigger if front is captured and clothes selected
+                    // but we'll wait 2s for user to see the thumbnail
+                    setTimeout(() => handleVirtualTryOn(), 2000);
+                }
+            }
+        } catch (err) {
+            setError('Capture failed');
+            setIsAutomatedFlow(false);
+        } finally {
+            setIsProcessingCapture(false);
+        }
+    };
+
+    const handleManualUpload = (angle, e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPersonImages(prev => ({ ...prev, [angle]: reader.result.split(',')[1] }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleStartCapture = async (step = 'FRONT') => {
+        try {
+            // Stop any existing countdown
+            if (countdownTimerRef.current) {
+                clearInterval(countdownTimerRef.current);
+                countdownTimerRef.current = null;
+            }
+
+            if (cameraActive && !gestureMode) {
+                await gesturesAPI.start();
+            }
+            setIsAutomatedFlow(true);
+            setCaptureStep(step);
+            const introMsg = `Preparing for ${step} view. You have 7 seconds to position yourself.`;
+            
+            speakText(introMsg);
+            setNarratorMessage(introMsg);
+            startCaptureCountdown(7, step);
+        } catch (err) {
+            console.error('Failed to start gesture engine:', err);
+            setError('Could not start camera. Please ensure it is not used by another app.');
+            setIsAutomatedFlow(false);
+        }
+    };
+
+    const handleResetSession = () => {
+        setPersonImages({ front: null, back: null, left: null, right: null });
+        setCaptureStep('OFF');
+        setScanComplete(false);
+        setNarratorMessage('');
+        setError(null);
+        speakText("Studio session reset. Ready for a new capture.");
     };
 
     // Handle ESC key to close tutorial
@@ -159,22 +330,6 @@ const TryOn = () => {
     // Integrated scan completion handler
     const handleTutorialComplete = async () => {
         setShowTutorial(false);
-    };
-
-    // Simulate body scanning progress (temporary - will be replaced by backend)
-    const simulateBodyScan = () => {
-        setScanProgress(0);
-        const interval = setInterval(() => {
-            setScanProgress(prev => {
-                if (prev >= 100) {
-                    clearInterval(interval);
-                    setIsScanning(false);
-                    setScanComplete(true);
-                    return 100;
-                }
-                return prev + 2; // Increase by 2% every 100ms = 5 seconds total
-            });
-        }, 100);
     };
 
 
@@ -207,6 +362,33 @@ const TryOn = () => {
             setSelectedLower(product);
         } else {
             setSelectedUpper(product);
+        }
+    };
+
+    // Trigger Virtual Try On
+    const handleVirtualTryOn = async () => {
+        if (!personImages.front || (!selectedUpper && !selectedLower)) return;
+        
+        try {
+            setIsGenerating(true);
+            setError(null);
+            
+            const garment = selectedUpper || selectedLower;
+            const garmentImage = getProductImage(garment);
+
+            // We use the 'front' image as primary for now as most models 
+            // only handle single view, but we've stored all 4 for future 360 logic.
+            const response = await tryonAPI.generate(personImages.front, garmentImage);
+            if (response.success) {
+                setTryOnResult(response.result_url);
+            } else {
+                setError(response.error || 'Failed to generate try-on');
+            }
+        } catch (err) {
+            console.error('Try-on failed:', err);
+            setError(err.message || 'An unexpected error occurred during try-on');
+        } finally {
+            setIsGenerating(false);
         }
     };
 
@@ -338,73 +520,116 @@ const TryOn = () => {
             )}
 
 
-            {/* ==================== BODY SCANNING OVERLAY ==================== */}
-            {isScanning && cameraActive && (
-                <div className="fixed inset-0 z-40 pointer-events-none flex items-center justify-center">
-                    <div className="relative w-[400px] h-[500px]">
+            {/* ==================== GUIDED STUDIO OVERLAY ==================== */}
+            {captureStep !== 'OFF' && captureStep !== 'COMPLETED' && cameraActive && !isManualMode && (!personImages[captureStep.toLowerCase()] || isAutomatedFlow) && (
+                <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none">
+                    {/* Darker backdrop for focus */}
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
 
-                        {/* Corner Markers - Top Left */}
-                        <div className="absolute top-0 left-0 w-20 h-20">
-                            <div className={`absolute top-0 left-0 w-full h-1 rounded-full transition-all duration-300 ${scanProgress >= 10 ? 'bg-emerald-400' : 'bg-white/30'}`}></div>
-                            <div className={`absolute top-0 left-0 w-1 h-full rounded-full transition-all duration-300 ${scanProgress >= 10 ? 'bg-emerald-400' : 'bg-white/30'}`}></div>
+                    {/* Silhouettes / Ghost Guides */}
+                    <div className="relative w-[450px] h-[600px] flex flex-col items-center justify-center">
+                        {/* Ghost Silhouette based on step */}
+                        <div className="absolute inset-0 opacity-20 transition-opacity duration-700 animate-pulse">
+                            <span className="material-symbols-outlined text-[500px] text-white">
+                                {captureStep === 'FRONT' || captureStep === 'BACK' ? 'body_system' : 'accessibility_new'}
+                            </span>
                         </div>
 
-                        {/* Corner Markers - Top Right */}
-                        <div className="absolute top-0 right-0 w-20 h-20">
-                            <div className={`absolute top-0 right-0 w-full h-1 rounded-full transition-all duration-300 ${scanProgress >= 30 ? 'bg-emerald-400' : 'bg-white/30'}`}></div>
-                            <div className={`absolute top-0 right-0 w-1 h-full rounded-full transition-all duration-300 ${scanProgress >= 30 ? 'bg-emerald-400' : 'bg-white/30'}`}></div>
+                        {/* Real-time Feedback Pill */}
+                        <div className={`px-8 py-4 rounded-[30px] backdrop-blur-2xl border-2 transition-all duration-300 flex flex-col items-center shadow-2xl ${
+                            analysis.status === 'ready' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                        }`}>
+                            <h2 className="text-xl font-bold uppercase tracking-wider">{analysis.status === 'ready' ? 'Ready!' : 'Adjusting...'}</h2>
+                             <p className="text-sm text-white/70 max-w-[300px] text-center mt-1">
+                                {analysis.status === 'ready' ? (narratorMessage || analysis.feedback) : (analysis.feedback || narratorMessage)}
+                            </p>
                         </div>
 
-                        {/* Corner Markers - Bottom Left */}
-                        <div className="absolute bottom-0 left-0 w-20 h-20">
-                            <div className={`absolute bottom-0 left-0 w-full h-1 rounded-full transition-all duration-300 ${scanProgress >= 60 ? 'bg-emerald-400' : 'bg-white/30'}`}></div>
-                            <div className={`absolute bottom-0 left-0 w-1 h-full rounded-full transition-all duration-300 ${scanProgress >= 60 ? 'bg-emerald-400' : 'bg-white/30'}`}></div>
+                        {/* Step Indicator */}
+                        <div className="mt-8 px-6 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-medium uppercase tracking-[0.3em]">
+                             Step {['FRONT', 'BACK', 'LEFT', 'RIGHT'].indexOf(captureStep) + 1} of 4: {captureStep}
                         </div>
 
-                        {/* Corner Markers - Bottom Right */}
-                        <div className="absolute bottom-0 right-0 w-20 h-20">
-                            <div className={`absolute bottom-0 right-0 w-full h-1 rounded-full transition-all duration-300 ${scanProgress >= 90 ? 'bg-emerald-400' : 'bg-white/30'}`}></div>
-                            <div className={`absolute bottom-0 right-0 w-1 h-full rounded-full transition-all duration-300 ${scanProgress >= 90 ? 'bg-emerald-400' : 'bg-white/30'}`}></div>
-                        </div>
-
-                        {/* Center Content */}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <div className="text-center">
-                                <span className="material-symbols-outlined text-6xl text-emerald-400 animate-pulse">body_system</span>
-                                <p className="text-xl font-medium text-white mt-4">Scanning Body...</p>
-                                <p className="text-5xl font-bold text-emerald-400 mt-2">{scanProgress}%</p>
-                                <p className="text-sm text-white/50 mt-3">Please stand still and face the camera</p>
+                        {/* Countdown Overlay */}
+                        {countdown !== null && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="text-[180px] font-black text-emerald-400 animate-ping">
+                                    {countdown}
+                                </div>
                             </div>
-                        </div>
-
-                        {/* Progress Ring Around Frame */}
-                        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 500">
-                            <rect
-                                x="10" y="10" width="380" height="480" rx="20"
-                                fill="none"
-                                stroke="rgba(255,255,255,0.1)"
-                                strokeWidth="2"
-                            />
-                            <rect
-                                x="10" y="10" width="380" height="480" rx="20"
-                                fill="none"
-                                stroke="rgb(52, 211, 153)"
-                                strokeWidth="3"
-                                strokeDasharray={`${(scanProgress / 100) * 1720} 1720`}
-                                className="transition-all duration-200"
-                            />
-                        </svg>
+                        )}
                     </div>
                 </div>
             )}
 
+            {/* ==================== GENERATING / LOADING OVERLAY ==================== */}
+            {isGenerating && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-8">
+                    <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-2xl"></div>
+                    
+                    {/* Ambient scan lines / loading effects */}
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+                        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_49%,rgba(99,102,241,0.2)_50%,transparent_51%)] bg-[length:100%_4px] animate-scan"></div>
+                    </div>
+
+                    <div className="relative z-10 flex flex-col items-center max-w-lg text-center">
+                        {/* Loading Animation */}
+                        <div className="size-32 mb-10 relative">
+                            <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20"></div>
+                            <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 animate-spin"></div>
+                            <div className="absolute inset-4 rounded-full border-2 border-dashed border-violet-500/30 animate-reverse-spin"></div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="material-symbols-outlined text-4xl text-indigo-400 animate-pulse">checkroom</span>
+                            </div>
+                        </div>
+
+                        <h2 className="text-4xl font-bold text-white mb-4 tracking-tight">
+                            {longWaitMessage ? "Almost There..." : "Starting Virtual Try On"}
+                        </h2>
+
+                        {/* Stopwatch Timer */}
+                        <div className="flex items-center gap-3 mb-6 px-6 py-2 rounded-full bg-white/5 border border-white/10">
+                            <span className="material-symbols-outlined text-indigo-400 animate-pulse">timer</span>
+                            <span className="text-2xl font-mono text-white/90">
+                                {Math.floor(generationTime / 60)}:{String(generationTime % 60).padStart(2, '0')}
+                            </span>
+                        </div>
+                        
+                        <p className="text-indigo-200/60 text-lg leading-relaxed mb-8">
+                            {longWaitMessage 
+                                ? "The system is using more time please wait. We are perfecting your high-fidelity render." 
+                                : "Our AI is merging the outfit with your body measurements for a perfect fit."}
+                        </p>
+
+                        {/* Progress Bar Simulation */}
+                        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                            <div className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 bg-[length:200%_100%] animate-shimmer rounded-full"></div>
+                        </div>
+                        
+                        <p className="mt-4 text-[10px] uppercase tracking-[0.3em] text-white/30 font-bold">
+                            Processing High-Resolution Frame
+                        </p>
+                    </div>
+                </div>
+            )}
+
+
             {/* ==================== SCAN COMPLETE MESSAGE ==================== */}
-            {scanComplete && cameraActive && !isScanning && (
+            {captureStep === 'COMPLETED' && !isGenerating && !tryOnResult && (
                 <div className="fixed inset-0 z-40 pointer-events-none flex items-center justify-center">
-                    <div className="bg-emerald-500/20 backdrop-blur-sm border border-emerald-500/30 rounded-3xl p-8 text-center animate-pulse">
-                        <span className="material-symbols-outlined text-6xl text-emerald-400">check_circle</span>
-                        <p className="text-xl font-bold text-white mt-4">Body Scan Complete!</p>
-                        <p className="text-white/60 mt-2">Use hand gestures to browse products</p>
+                    <div className="bg-emerald-500/20 backdrop-blur-md border border-emerald-500/30 rounded-[40px] p-12 text-center animate-in zoom-in duration-500 shadow-2xl">
+                        <div className="size-24 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto mb-6">
+                            <span className="material-symbols-outlined text-6xl text-emerald-400">task_alt</span>
+                        </div>
+                        <p className="text-3xl font-bold text-white">Studio Session Ready!</p>
+                        <p className="text-white/50 mt-3 text-lg">We've captured your measurements. You can now change clothes freely.</p>
+                        <div className="mt-8 flex gap-4 justify-center">
+                            {Object.entries(personImages).map(([angle, img]) => img && (
+                                <div key={angle} className="size-16 rounded-xl border border-white/10 overflow-hidden shadow-lg">
+                                    <img src={`data:image/jpeg;base64,${img}`} alt={angle} className="w-full h-full object-cover" />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}
@@ -442,8 +667,8 @@ const TryOn = () => {
                                 <span className="text-sm font-bold text-indigo-400">1</span>
                             </div>
                             <div>
-                                <h4 className="font-medium text-white text-sm">Stand in Frame</h4>
-                                <p className="text-xs text-white/50 mt-1 leading-relaxed">Position yourself in front of the camera so your full body is visible</p>
+                                <h4 className="font-medium text-white text-sm">Position Yourself</h4>
+                                <p className="text-xs text-white/50 mt-1 leading-relaxed">Stand in front of the camera so the parts you want to try on are visible</p>
                             </div>
                         </div>
 
@@ -573,35 +798,58 @@ const TryOn = () => {
 
                     {/* Bottom Controls */}
                     <div className="relative z-10 p-8">
-                        <div className="flex items-center justify-center gap-4">
-                            {/* Start Capturing Body Button - STATIC STYLE */}
-                            <button
-                                onClick={handleStartCapture}
-                                disabled={isScanning || scanComplete}
-                                className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-semibold transition-all shadow-xl group ${isScanning || scanComplete
-                                    ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 cursor-not-allowed'
-                                    : 'bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105'
-                                    }`}
-                            >
-                                <span className={`material-symbols-outlined text-2xl ${isScanning ? 'animate-spin' : 'group-hover:animate-pulse'}`}>
-                                    {isScanning ? 'progress_activity' : scanComplete ? 'check_circle' : 'body_system'}
-                                </span>
-                                <span className="text-lg">
-                                    {isScanning ? 'Scanning Body...' : scanComplete ? 'Body Scanned' : 'Start Capturing Body'}
-                                </span>
-                            </button>
+                         <div className="flex items-center justify-center gap-4">
+                              {/* Start/Reset Capturing Body Button */}
+                            {/* Main CTA moved to Bottom Left or Center - Keeping it centered for now but removing the steps labels */}
+                             <button
+                                 onClick={() => {
+                                     if (captureStep === 'COMPLETED') {
+                                         handleResetSession();
+                                     } else {
+                                        // Dynamic next step logic
+                                        const steps = ['FRONT', 'LEFT', 'BACK', 'RIGHT'];
+                                        const remaining = steps.filter(s => !personImages[s.toLowerCase()]);
+                                        if (remaining.length > 0) {
+                                            handleStartCapture(remaining[0]);
+                                        } else {
+                                            setCaptureStep('COMPLETED');
+                                        }
+                                     }
+                                 }}
+                                 disabled={isAutomatedFlow || isGenerating}
+                                 className={`flex items-center gap-3 px-10 py-5 rounded-2xl font-black transition-all shadow-xl group ${isAutomatedFlow
+                                     ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 cursor-not-allowed'
+                                     : captureStep === 'COMPLETED' 
+                                         ? 'bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white'
+                                         : 'bg-white text-slate-900 hover:scale-105 shadow-white/10'
+                                     }`}
+                             >
+                                 <span className={`material-symbols-outlined text-2xl ${isAutomatedFlow ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>
+                                     {captureStep === 'COMPLETED' ? 'refresh' : isAutomatedFlow ? 'progress_activity' : 'camera'}
+                                 </span>
+                                 <span className="text-base uppercase tracking-widest">
+                                     {captureStep === 'COMPLETED' ? 'New Session' : isAutomatedFlow ? `Adjusting...` : 'Quick Snap'}
+                                 </span>
+                             </button>
+
+                            {/* Studio Reset Button (Inside Profile now) */}
 
 
                             {/* Virtual Try On Button */}
                             <button
-                                className={`flex items-center gap-3 px-8 py-4 rounded-2xl text-white font-bold transition-all shadow-xl group ${cameraActive && (selectedUpper || selectedLower)
+                                onClick={handleVirtualTryOn}
+                                className={`flex items-center gap-3 px-8 py-4 rounded-2xl text-white font-bold transition-all shadow-xl group ${cameraActive && personImages.front && (selectedUpper || selectedLower) && !isGenerating && !isAutomatedFlow
                                     ? 'bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 hover:scale-105 shadow-indigo-500/30'
                                     : 'bg-gray-600/50 cursor-not-allowed opacity-50'
                                     }`}
-                                disabled={!cameraActive || (!selectedUpper && !selectedLower)}
+                                disabled={!cameraActive || !personImages.front || (!selectedUpper && !selectedLower) || isGenerating || isAutomatedFlow}
                             >
-                                <span className="material-symbols-outlined text-2xl group-hover:animate-pulse">checkroom</span>
-                                <span className="text-lg">Virtual Try On</span>
+                                <span className={`material-symbols-outlined text-2xl ${isGenerating ? 'animate-spin' : 'group-hover:animate-pulse'}`}>
+                                    {isGenerating ? 'progress_activity' : 'shopping_bag'}
+                                </span>
+                                <span className="text-lg">
+                                    {isGenerating ? 'Processing...' : 'Virtual Try On'}
+                                </span>
                             </button>
                         </div>
 
@@ -625,60 +873,103 @@ const TryOn = () => {
 
                 {/* Right Side Panel */}
                 <div className="w-64 flex flex-col gap-4">
-
-                    {/* Selected Items Section */}
+ 
+                    {/* Studio Profile Grid */}
                     <div className="rounded-3xl bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-5">
-                        <h3 className="font-medium text-white/80 text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-indigo-400">checkroom</span>
-                            Your Selection
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm">camera_front</span>
+                                Studio Profile
+                            </h3>
+                            {Object.values(personImages).some(img => img) && (
+                                <button 
+                                    onClick={handleResetSession}
+                                    className="text-[8px] font-bold text-red-400 hover:text-red-300 uppercase tracking-tighter"
+                                >
+                                    Reset All
+                                </button>
+                            )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                            {['FRONT', 'LEFT', 'BACK', 'RIGHT'].map(angle => {
+                                const angleKey = angle.toLowerCase();
+                                const isCaptured = !!personImages[angleKey];
+                                const isActive = captureStep === angle && isAutomatedFlow;
+
+                                return (
+                                    <div key={angle} className={`relative group rounded-xl border transition-all overflow-hidden aspect-square ${isActive ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-500/5' : isCaptured ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/5 bg-white/[0.02]'}`}>
+                                        {isCaptured ? (
+                                            <img src={`data:image/jpeg;base64,${personImages[angleKey]}`} className="w-full h-full object-cover" alt={angle} />
+                                        ) : (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white/10">
+                                                <span className="material-symbols-outlined text-2xl">person_outline</span>
+                                                <span className="text-[7px] font-bold uppercase mt-1 opacity-50">{angle}</span>
+                                            </div>
+                                        )}
+                                        
+                                        {/* Overlay Controls */}
+                                        <div className={`absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                            <button
+                                                onClick={() => handleStartCapture(angle)}
+                                                disabled={isAutomatedFlow || isGenerating}
+                                                className="size-10 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title={`Capture ${angle}`}
+                                            >
+                                                <span className={`material-symbols-outlined ${isActive ? 'animate-spin text-sm' : ''}`}>
+                                                    {isActive ? 'progress_activity' : (isCaptured ? 'refresh' : 'videocam')}
+                                                </span>
+                                            </button>
+                                        </div>
+
+                                        {/* Active Badge */}
+                                        {isActive && (
+                                            <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full bg-indigo-500 text-[6px] font-black text-white animate-pulse">
+                                                LIVE
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Active Selection Panel */}
+                    <div className="rounded-3xl bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-5">
+                        <h3 className="font-medium text-white/50 text-[10px] uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-xs text-indigo-400">checkroom</span>
+                            Active Selection
                         </h3>
 
-                        <div className="space-y-3">
-                            {/* Selected Shirt/Top */}
-                            <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${selectedUpper ? 'bg-white/5 border border-white/10' : 'border border-dashed border-white/20'}`}>
-                                {selectedUpper ? (
-                                    <>
-                                        <div className="size-12 rounded-lg overflow-hidden flex-shrink-0">
-                                            <img src={getProductImage(selectedUpper)} alt="" className="w-full h-full object-cover" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">{selectedUpper.name}</p>
-                                            <p className="text-xs text-indigo-400">${selectedUpper.price?.toFixed(2)}</p>
-                                        </div>
-                                        <button onClick={() => setSelectedUpper(null)} className="text-white/40 hover:text-white">
-                                            <span className="material-symbols-outlined text-lg">close</span>
-                                        </button>
-                                    </>
-                                ) : (
-                                    <div className="flex items-center gap-2 text-white/30 py-1">
-                                        <span className="material-symbols-outlined text-lg">checkroom</span>
-                                        <span className="text-xs">No shirt selected</span>
+                        <div className="space-y-2">
+                            {['upper', 'lower'].map(cat => {
+                                const selected = cat === 'upper' ? selectedUpper : selectedLower;
+                                const setter = cat === 'upper' ? setSelectedUpper : setSelectedLower;
+                                
+                                return (
+                                    <div key={cat} className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${selected ? 'bg-white/5 border border-white/10' : 'border border-dashed border-white/10 opcity-40'}`}>
+                                        {selected ? (
+                                            <>
+                                                <div className="size-10 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+                                                    <img src={getProductImage(selected)} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[10px] font-bold truncate text-white/90">{selected.name}</p>
+                                                    <p className="text-[9px] text-indigo-400 font-black">${selected.price?.toFixed(2)}</p>
+                                                </div>
+                                                <button onClick={() => setter(null)} className="text-white/20 hover:text-white transition-colors">
+                                                    <span className="material-symbols-outlined text-sm">close</span>
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className="flex items-center gap-2 text-white/20 py-0.5">
+                                                <span className="material-symbols-outlined text-sm">checkroom</span>
+                                                <span className="text-[9px] font-medium tracking-tight">Empty {cat} slot</span>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-
-                            {/* Selected Pant/Bottom */}
-                            <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${selectedLower ? 'bg-white/5 border border-white/10' : 'border border-dashed border-white/20'}`}>
-                                {selectedLower ? (
-                                    <>
-                                        <div className="size-12 rounded-lg overflow-hidden flex-shrink-0">
-                                            <img src={getProductImage(selectedLower)} alt="" className="w-full h-full object-cover" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">{selectedLower.name}</p>
-                                            <p className="text-xs text-indigo-400">${selectedLower.price?.toFixed(2)}</p>
-                                        </div>
-                                        <button onClick={() => setSelectedLower(null)} className="text-white/40 hover:text-white">
-                                            <span className="material-symbols-outlined text-lg">close</span>
-                                        </button>
-                                    </>
-                                ) : (
-                                    <div className="flex items-center gap-2 text-white/30 py-1">
-                                        <span className="material-symbols-outlined text-lg">checkroom</span>
-                                        <span className="text-xs">No pant selected</span>
-                                    </div>
-                                )}
-                            </div>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -772,6 +1063,86 @@ const TryOn = () => {
                     </div>
                 </div>
             </div>
+            {/* ==================== TRY-ON RESULT MODAL ==================== */}
+            {tryOnResult && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-8">
+                    <div 
+                        className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl"
+                        onClick={() => setTryOnResult(null)}
+                    ></div>
+                    
+                    <div className="relative z-10 w-full max-w-4xl bg-slate-900 border border-white/10 rounded-[40px] overflow-hidden shadow-2xl animate-in zoom-in duration-500">
+                        <div className="flex h-[600px]">
+                            {/* Comparison / Result View */}
+                            <div className="flex-1 bg-black flex items-center justify-center p-4">
+                                <img 
+                                    src={tryOnResult} 
+                                    alt="Virtual Try-On Result" 
+                                    className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl shadow-indigo-500/20"
+                                />
+                            </div>
+                            
+                            {/* Controls Panel */}
+                            <div className="w-80 p-8 flex flex-col bg-white/[0.02] border-l border-white/5">
+                                <div className="mb-8">
+                                    <h2 className="text-2xl font-semibold mb-2">Virtual Look</h2>
+                                    <p className="text-white/40 text-sm">Processed by IDM-VTON Core</p>
+                                </div>
+                                
+                                <div className="space-y-4 mb-auto">
+                                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                                        <div className="text-xs text-white/30 uppercase tracking-widest mb-3">Model Details</div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="size-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-emerald-400 text-sm">stars</span>
+                                            </div>
+                                            <span className="text-sm font-medium">Ultra High Fidelity</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-3">
+                                    <button 
+                                        onClick={() => window.open(tryOnResult, '_blank')}
+                                        className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 font-bold hover:scale-[1.02] transition-transform active:scale-95"
+                                    >
+                                        <span className="material-symbols-outlined">download</span>
+                                        Download Image
+                                    </button>
+                                    <button 
+                                        onClick={() => setTryOnResult(null)}
+                                        className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 font-medium hover:bg-white/10 transition-colors"
+                                    >
+                                        Back to Studio
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Close button top right */}
+                        <button 
+                            onClick={() => setTryOnResult(null)}
+                            className="absolute top-6 right-6 size-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+                        >
+                            <span className="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Error Toast */}
+            {error && (
+                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[110] animate-in slide-in-from-bottom-5 duration-300">
+                    <div className="px-6 py-4 rounded-2xl bg-red-500/10 border border-red-500/30 backdrop-blur-xl text-red-500 flex items-center gap-3 shadow-2xl">
+                        <span className="material-symbols-outlined">error</span>
+                        <span className="font-medium">{error}</span>
+                        <button onClick={() => setError(null)} className="ml-4 opacity-50 hover:opacity-100">
+                            <span className="material-symbols-outlined text-lg">close</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* ==================== VIRTUAL CURSOR ==================== */}
             {gestureMode && (
                 <div
